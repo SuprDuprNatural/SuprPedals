@@ -1,0 +1,286 @@
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:    <http://moddevices.com/ns/mod#> .
+@prefix param:  <http://lv2plug.in/ns/ext/parameters#> .
+@prefix pg:     <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix units:  <http://lv2plug.in/ns/extensions/units#> .
+
+@prefix plus: <https://suprduprnatural.github.io/supr-pedals/octave-plus#> .
+
+plus:mixerGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Mixer" ;
+    lv2:symbol "mixerGroup" .
+
+plus:synthGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Synth" ;
+    lv2:symbol "synthGroup" .
+
+plus:filterGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Filter" ;
+    lv2:symbol "filterGroup" .
+
+<https://suprduprnatural.github.io/supr-pedals/octave-plus>
+    a lv2:Plugin , lv2:PitchPlugin ;
+    doap:name "SuprOctavePlus" ;
+    doap:license <https://opensource.org/licenses/MIT> ;
+    lv2:minorVersion 5 ;
+    lv2:microVersion 0 ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    mod:brand "Supr" ;
+    mod:label "SuprOctavePlus" ;
+    rdfs:comment "SuprOctave's analog-style sub-octave plus a pitch-locked monophonic synth voice: two polyBLEP oscillators, each with its own level, waveform and octave (-2..+2), the second offset by Detune, through a resonant low-pass with a dedicated AD filter envelope (bipolar amount, keytracking). The amp envelope follows your string, because a plucked string already has a better envelope than a synth would give it. Glide sets portamento. No MIDI needed - the synth follows the string." ;
+    lv2:port [
+        a lv2:AudioPort , lv2:InputPort ;
+        lv2:index 0 ;
+        lv2:symbol "in" ;
+        lv2:name "In" ;
+    ] , [
+        a lv2:AudioPort , lv2:OutputPort ;
+        lv2:index 1 ;
+        lv2:symbol "out" ;
+        lv2:name "Out" ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 2 ;
+        lv2:symbol "direct" ;
+        lv2:name "Direct" ;
+        pg:group plus:mixerGroup ;
+        lv2:default 1.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 2.0 ;
+        rdfs:comment "Clean signal level." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 3 ;
+        lv2:symbol "gate" ;
+        lv2:name "Gate" ;
+        pg:group plus:mixerGroup ;
+        lv2:default -55.0 ;
+        lv2:minimum -90.0 ;
+        lv2:maximum -20.0 ;
+        units:unit units:db ;
+        rdfs:comment "Input level below which the sub and synth mute." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 4 ;
+        lv2:symbol "oct1" ;
+        lv2:name "Oct -1" ;
+        pg:group plus:mixerGroup ;
+        lv2:default 0.5 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 2.0 ;
+        rdfs:comment "One octave down, from the flip-flop divider." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 5 ;
+        lv2:symbol "tone" ;
+        lv2:name "Tone" ;
+        pg:group plus:mixerGroup ;
+        lv2:default 550.0 ;
+        lv2:minimum 100.0 ;
+        lv2:maximum 8000.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:hz ;
+        rdfs:comment "Low-pass on the sub voice: low is a smooth synth sub, high keeps the grind." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 6 ;
+        lv2:symbol "osc1level" ;
+        lv2:name "Osc 1" ;
+        pg:group plus:synthGroup ;
+        lv2:default 1.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 2.0 ;
+        rdfs:comment "First oscillator level." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 7 ;
+        lv2:symbol "osc1oct" ;
+        lv2:name "Octave" ;
+        pg:group plus:synthGroup ;
+        lv2:default 0 ;
+        lv2:minimum -2 ;
+        lv2:maximum 2 ;
+        lv2:portProperty lv2:integer ;
+        rdfs:comment "First oscillator transpose, in octaves against the played note." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 8 ;
+        lv2:symbol "osc1wave" ;
+        lv2:name "Wave" ;
+        pg:group plus:synthGroup ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 3 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdfs:label "Saw" ; rdf:value 0 ] ,
+                       [ rdfs:label "Square" ; rdf:value 1 ] ,
+                       [ rdfs:label "Triangle" ; rdf:value 2 ] ,
+                       [ rdfs:label "Sine" ; rdf:value 3 ] ;
+        rdfs:comment "First oscillator waveform." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 9 ;
+        lv2:symbol "osc2level" ;
+        lv2:name "Osc 2" ;
+        pg:group plus:synthGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 2.0 ;
+        rdfs:comment "Second oscillator level. At 0 there is one oscillator and Detune does nothing." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 10 ;
+        lv2:symbol "osc2oct" ;
+        lv2:name "Octave" ;
+        pg:group plus:synthGroup ;
+        lv2:default 0 ;
+        lv2:minimum -2 ;
+        lv2:maximum 2 ;
+        lv2:portProperty lv2:integer ;
+        rdfs:comment "Second oscillator transpose, in octaves against the played note." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 11 ;
+        lv2:symbol "osc2wave" ;
+        lv2:name "Wave" ;
+        pg:group plus:synthGroup ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 3 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdfs:label "Saw" ; rdf:value 0 ] ,
+                       [ rdfs:label "Square" ; rdf:value 1 ] ,
+                       [ rdfs:label "Triangle" ; rdf:value 2 ] ,
+                       [ rdfs:label "Sine" ; rdf:value 3 ] ;
+        rdfs:comment "Second oscillator waveform." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 12 ;
+        lv2:symbol "detune" ;
+        lv2:name "Detune" ;
+        pg:group plus:synthGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 50.0 ;
+        units:unit units:cent ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 0.0 ] ;
+        rdfs:comment "Offsets the second oscillator against the first, for thickness." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 13 ;
+        lv2:symbol "glide" ;
+        lv2:name "Glide" ;
+        pg:group plus:synthGroup ;
+        lv2:default 15.0 ;
+        lv2:minimum 1.0 ;
+        lv2:maximum 1000.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:ms ;
+        rdfs:comment "Portamento to the tracked pitch." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 14 ;
+        lv2:symbol "cutoff" ;
+        lv2:name "Cutoff" ;
+        pg:group plus:filterGroup ;
+        lv2:default 900.0 ;
+        lv2:minimum 100.0 ;
+        lv2:maximum 6000.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:hz ;
+        rdfs:comment "Synth filter base cutoff." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 15 ;
+        lv2:symbol "res" ;
+        lv2:name "Resonance" ;
+        pg:group plus:filterGroup ;
+        lv2:default 0.3 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        rdfs:comment "Synth filter resonance." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 16 ;
+        lv2:symbol "envmod" ;
+        lv2:name "Env Mod" ;
+        pg:group plus:filterGroup ;
+        lv2:default 0.5 ;
+        lv2:minimum -1.0 ;
+        lv2:maximum 1.0 ;
+        rdfs:comment "Filter envelope amount, up to +-3 octaves. Negative closes the filter on the attack." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 17 ;
+        lv2:symbol "keytrack" ;
+        lv2:name "Keytrack" ;
+        pg:group plus:filterGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:scalePoint [ rdfs:label "Fixed" ; rdf:value 0.0 ] ;
+        rdfs:comment "How much the filter cutoff follows the played note." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 18 ;
+        lv2:symbol "fattack" ;
+        lv2:name "Attack" ;
+        pg:group plus:filterGroup ;
+        lv2:default 3.0 ;
+        lv2:minimum 0.5 ;
+        lv2:maximum 2000.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:ms ;
+        rdfs:comment "Filter envelope attack." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 19 ;
+        lv2:symbol "fdecay" ;
+        lv2:name "Decay" ;
+        pg:group plus:filterGroup ;
+        lv2:default 250.0 ;
+        lv2:minimum 1.0 ;
+        lv2:maximum 4000.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:ms ;
+        rdfs:comment "Filter envelope decay." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 20 ;
+        lv2:symbol "fc" ;
+        lv2:name "Fc" ;
+        lv2:default 900.0 ;
+        lv2:minimum 30.0 ;
+        lv2:maximum 12000.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:hz ;
+        rdfs:comment "Live synth-filter cutoff (drives the response plot)." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 21 ;
+        lv2:symbol "note" ;
+        lv2:name "Note" ;
+        lv2:default 55.0 ;
+        lv2:minimum 10.0 ;
+        lv2:maximum 1000.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:hz ;
+        rdfs:comment "Tracked note fundamental (drives the response plot markers)." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 22 ;
+        lv2:symbol "samp" ;
+        lv2:name "Synth Amp" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        rdfs:comment "Synth amp envelope level (drives the response plot)." ;
+    ] .

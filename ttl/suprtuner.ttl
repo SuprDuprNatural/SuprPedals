@@ -1,0 +1,135 @@
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:    <http://moddevices.com/ns/mod#> .
+@prefix param:  <http://lv2plug.in/ns/ext/parameters#> .
+@prefix pg:     <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix units:  <http://lv2plug.in/ns/extensions/units#> .
+
+@prefix tuner: <https://suprduprnatural.github.io/supr-pedals/tuner#> .
+
+tuner:setupGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Setup" ;
+    lv2:symbol "setupGroup" .
+
+<https://suprduprnatural.github.io/supr-pedals/tuner>
+    a lv2:Plugin , lv2:AnalyserPlugin , lv2:UtilityPlugin ;
+    doap:name "SuprTuner" ;
+    doap:license <https://opensource.org/licenses/MIT> ;
+    lv2:minorVersion 1 ;
+    lv2:microVersion 0 ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    mod:brand "Supr" ;
+    mod:label "SuprTuner" ;
+    rdfs:comment "Precision chromatic strobe tuner designed around bass guitar. A McLeod-style period detector tracks fundamentals from 18 to 500 Hz, including low B and down-tuned bass, without mistaking strong harmonics for the note. The analyser publishes a compact display-neutral state for PiPedal custom views and other controllers. Audio is bit-transparent unless Mute is engaged." ;
+    lv2:port [
+        a lv2:AudioPort , lv2:InputPort ;
+        lv2:index 0 ;
+        lv2:symbol "in" ;
+        lv2:name "In" ;
+    ] , [
+        a lv2:AudioPort , lv2:OutputPort ;
+        lv2:index 1 ;
+        lv2:symbol "out" ;
+        lv2:name "Out" ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 2 ;
+        lv2:symbol "reference" ;
+        lv2:name "Reference" ;
+        pg:group tuner:setupGroup ;
+        lv2:default 440.0 ;
+        lv2:minimum 390.0 ;
+        lv2:maximum 490.0 ;
+        units:unit units:hz ;
+        rdfs:comment "Concert-pitch reference frequency for A4." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 3 ;
+        lv2:symbol "gate" ;
+        lv2:name "Gate" ;
+        pg:group tuner:setupGroup ;
+        lv2:default -65.0 ;
+        lv2:minimum -90.0 ;
+        lv2:maximum -20.0 ;
+        units:unit units:db ;
+        rdfs:comment "Minimum input level accepted by the pitch detector." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 4 ;
+        lv2:symbol "mute" ;
+        lv2:name "Mute" ;
+        pg:group tuner:setupGroup ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:toggled , lv2:integer ;
+        rdfs:comment "Mutes the audio output while tuning. Analysis remains active." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 5 ;
+        lv2:symbol "frequency" ;
+        lv2:name "Frequency" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 500.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:hz ;
+        rdfs:comment "Filtered detected fundamental frequency." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 6 ;
+        lv2:symbol "note" ;
+        lv2:name "Note" ;
+        lv2:default -1 ;
+        lv2:minimum -1 ;
+        lv2:maximum 127 ;
+        lv2:portProperty pprops:notOnGUI , lv2:integer ;
+        units:unit units:midiNote ;
+        rdfs:comment "Nearest MIDI note number, or -1 when no pitch is locked." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 7 ;
+        lv2:symbol "cents" ;
+        lv2:name "Cents" ;
+        lv2:default 0.0 ;
+        lv2:minimum -50.0 ;
+        lv2:maximum 50.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:cent ;
+        rdfs:comment "Pitch error relative to the displayed note." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 8 ;
+        lv2:symbol "confidence" ;
+        lv2:name "Confidence" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        rdfs:comment "NSDF tonal clarity and pitch-lock confidence." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 9 ;
+        lv2:symbol "level" ;
+        lv2:name "Level" ;
+        lv2:default -96.0 ;
+        lv2:minimum -96.0 ;
+        lv2:maximum 6.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:db ;
+        rdfs:comment "Input level for display and signal-presence indication." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 10 ;
+        lv2:symbol "strobe" ;
+        lv2:name "Strobe Phase" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        rdfs:comment "Wrapped octave-normalised phase drift. Positive motion is sharp, negative motion is flat; harmonic display lanes may use phase multiples." ;
+    ] .

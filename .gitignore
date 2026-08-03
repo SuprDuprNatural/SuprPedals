@@ -1,0 +1,5 @@
+build/
+username.txt
+/*.wav
+.DS_Store
+models/

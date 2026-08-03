@@ -1,0 +1,22 @@
+/* Export the LV2 entry point and nothing else.
+ *
+ * suprnam.so statically links NeuralAudio and NAM Core. Without this script
+ * every one of their symbols — around 478 of them, many of them weak template
+ * instantiations — is exported globally, and the dynamic linker is then free
+ * to satisfy *another* plugin's references to the same names from this
+ * library. TooB Neural Amp Modeler links its own, different build of the same
+ * two projects, so whichever of the two plugins loaded first won: loading
+ * SuprNAM before TooB NAM left TooB NAM running against this library's
+ * NeuralAudio, and its Slim and calibration controls silently disappeared
+ * because the metadata accessors it expects behave differently here.
+ *
+ * Nothing outside needs anything from this plugin except lv2_descriptor, so
+ * hiding the rest removes the whole class of problem. TooB does the same thing
+ * for the same reason.
+ */
+{
+    global:
+        lv2_descriptor;
+    local:
+        *;
+};

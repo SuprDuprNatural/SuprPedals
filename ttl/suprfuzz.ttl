@@ -1,0 +1,119 @@
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:    <http://moddevices.com/ns/mod#> .
+@prefix param:  <http://lv2plug.in/ns/ext/parameters#> .
+@prefix pg:     <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix units:  <http://lv2plug.in/ns/extensions/units#> .
+
+@prefix fuzz: <https://suprduprnatural.github.io/supr-pedals/fuzz#> .
+
+fuzz:fuzzGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Fuzz" ;
+    lv2:symbol "fuzzGroup" .
+
+fuzz:outputGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Output" ;
+    lv2:symbol "outputGroup" .
+
+<https://suprduprnatural.github.io/supr-pedals/fuzz>
+    a lv2:Plugin , lv2:DistortionPlugin ;
+    doap:name "SuprFuzz" ;
+    doap:license <https://opensource.org/licenses/MIT> ;
+    lv2:minorVersion 1 ;
+    lv2:microVersion 0 ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    mod:brand "Supr" ;
+    mod:label "SuprFuzz" ;
+    rdfs:comment "Bass fuzz fitted to an EHX Big Muff for Bass. Two cascaded clipping stages, fitted to captures of the real pedal at two Sustain settings: 36 harmonic measurements matched to 1.07 dB rms with one curve shape, and Sustain 0 to 3 o'clock coming out as exactly 19 dB of first-stage gain. The cascade is why it sounds equally distorted however hard you play. Blend mixes a sample-aligned clean path so no setting combs out the low end." ;
+    lv2:port [
+        a lv2:AudioPort , lv2:InputPort ;
+        lv2:index 0 ;
+        lv2:symbol "in" ;
+        lv2:name "In" ;
+    ] , [
+        a lv2:AudioPort , lv2:OutputPort ;
+        lv2:index 1 ;
+        lv2:symbol "out" ;
+        lv2:name "Out" ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 2 ;
+        lv2:symbol "sustain" ;
+        lv2:name "Sustain" ;
+        pg:group fuzz:fuzzGroup ;
+        lv2:default 5.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 10.0 ;
+        rdfs:comment "Gain into the first clipping stage, 26 to 64 dB. The knob spans the reference pedal's own -5 to 10, so its two captured settings land at 3.3 and 8.3 here and their harmonics match within 0.85 dB. Output level is matched to your clean signal at every setting, so this changes character and not loudness. It is never clean at any position." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 3 ;
+        lv2:symbol "tone" ;
+        lv2:name "Tone" ;
+        pg:group fuzz:fuzzGroup ;
+        lv2:default 5.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 10.0 ;
+        rdfs:comment "Tilts bass against treble around 1 kHz. At 5 the voicing is the captured one, flat within 2.5 dB from 20 Hz to 5 kHz." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 4 ;
+        lv2:symbol "gate" ;
+        lv2:name "Gate" ;
+        pg:group fuzz:outputGroup ;
+        lv2:default -55.0 ;
+        lv2:minimum -90.0 ;
+        lv2:maximum -20.0 ;
+        units:unit units:db ;
+        rdfs:comment "Silence threshold. Held open while the tracker still hears a note, so it cuts hiss without cutting decay. -90 is off." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 5 ;
+        lv2:symbol "blend" ;
+        lv2:name "Blend" ;
+        pg:group fuzz:outputGroup ;
+        lv2:default 1.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        rdfs:comment "Clean to fuzz, sample-aligned. Back it off to put the fundamental back underneath." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 6 ;
+        lv2:symbol "level" ;
+        lv2:name "Level" ;
+        pg:group fuzz:outputGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -30.0 ;
+        lv2:maximum 12.0 ;
+        pprops:rangeSteps 15 ;
+        units:unit units:db ;
+        rdfs:comment "Output level." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 7 ;
+        lv2:symbol "note" ;
+        lv2:name "Note" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 400.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:hz ;
+        rdfs:comment "Tracked pitch, 0 when gated. The tracker holds the gate open through a decaying note and publishes its state for the UI." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 8 ;
+        lv2:symbol "latency" ;
+        lv2:name "Latency" ;
+        lv2:designation lv2:latency ;
+        lv2:default 15.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 64.0 ;
+        lv2:portProperty pprops:notOnGUI , lv2:reportsLatency , lv2:integer ;
+        units:unit units:frame ;
+        rdfs:comment "Halfband oversampler round trip — 15 samples, about 0.3 ms at 48 kHz." ;
+    ] .

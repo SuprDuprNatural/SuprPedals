@@ -1,0 +1,129 @@
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:    <http://moddevices.com/ns/mod#> .
+@prefix param:  <http://lv2plug.in/ns/ext/parameters#> .
+@prefix pg:     <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix units:  <http://lv2plug.in/ns/extensions/units#> .
+
+@prefix ch: <https://suprduprnatural.github.io/supr-pedals/chorus#> .
+
+ch:modGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Modulation" ;
+    lv2:symbol "modGroup" .
+
+ch:toneGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Tone" ;
+    lv2:symbol "toneGroup" .
+
+ch:outputGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Output" ;
+    lv2:symbol "outputGroup" .
+
+<https://suprduprnatural.github.io/supr-pedals/chorus>
+    a lv2:Plugin , lv2:ChorusPlugin ;
+    doap:name "SuprChorus" ;
+    doap:license <https://opensource.org/licenses/MIT> ;
+    lv2:minorVersion 1 ;
+    lv2:microVersion 0 ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    mod:brand "Supr" ;
+    mod:label "SuprChorus" ;
+    rdfs:comment "A chorus that leaves the fundamental alone. Everything below the Low knob passes through undelayed and unmodulated while the band above it is chorused by up to three voices, so the low end stays put instead of wobbling." ;
+    lv2:port [
+        a lv2:AudioPort , lv2:InputPort ;
+        lv2:index 0 ;
+        lv2:symbol "in" ;
+        lv2:name "In" ;
+    ] , [
+        a lv2:AudioPort , lv2:OutputPort ;
+        lv2:index 1 ;
+        lv2:symbol "out" ;
+        lv2:name "Out" ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 2 ;
+        lv2:symbol "rate" ;
+        lv2:name "Rate" ;
+        pg:group ch:modGroup ;
+        lv2:default 0.6 ;
+        lv2:minimum 0.02 ;
+        lv2:maximum 8.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:hz ;
+        rdfs:comment "LFO speed. Slow is where a bass chorus lives; fast rates trade depth for it, because the two multiply out into pitch." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 3 ;
+        lv2:symbol "depth" ;
+        lv2:name "Depth" ;
+        pg:group ch:modGroup ;
+        lv2:default 3.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 8.0 ;
+        units:unit units:ms ;
+        rdfs:comment "How far the delay swings. Read it as a maximum: detune is depth times rate, so above about 1 Hz a ceiling of 50 cents takes over before the knob runs out." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 4 ;
+        lv2:symbol "voices" ;
+        lv2:name "Voices" ;
+        pg:group ch:modGroup ;
+        lv2:default 2 ;
+        lv2:minimum 1 ;
+        lv2:maximum 3 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdfs:label "1" ; rdf:value 1 ] ,
+                       [ rdfs:label "2" ; rdf:value 2 ] ,
+                       [ rdfs:label "3" ; rdf:value 3 ] ;
+        rdfs:comment "Delay taps, evenly spread around the LFO cycle and set at different base delays. One is a single clean sweep; three is the lushest and the busiest." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 5 ;
+        lv2:symbol "low" ;
+        lv2:name "Low" ;
+        pg:group ch:toneGroup ;
+        lv2:default 120.0 ;
+        lv2:minimum 20.0 ;
+        lv2:maximum 400.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:hz ;
+        rdfs:comment "Everything below this is left alone — no delay, no modulation, no comb. Set it above your lowest fundamental. At 20 the split is effectively off and the whole signal choruses." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 6 ;
+        lv2:symbol "tone" ;
+        lv2:name "Tone" ;
+        pg:group ch:toneGroup ;
+        lv2:default 6000.0 ;
+        lv2:minimum 800.0 ;
+        lv2:maximum 12000.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:hz ;
+        rdfs:comment "Low-pass on the modulated voices only. Darkening them is what keeps the effect behind the note instead of on top of it." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 7 ;
+        lv2:symbol "mix" ;
+        lv2:name "Mix" ;
+        pg:group ch:outputGroup ;
+        lv2:default 0.35 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        rdfs:comment "Dry to chorused, within the band above Low. The low band sits at full level throughout, so this never thins the bottom out." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 8 ;
+        lv2:symbol "lfo" ;
+        lv2:name "LFO" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        rdfs:comment "Live LFO phase (drives the modulation display)." ;
+    ] .

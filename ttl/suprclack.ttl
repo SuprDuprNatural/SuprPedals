@@ -1,0 +1,197 @@
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:    <http://moddevices.com/ns/mod#> .
+@prefix param:  <http://lv2plug.in/ns/ext/parameters#> .
+@prefix pg:     <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix units:  <http://lv2plug.in/ns/extensions/units#> .
+
+@prefix ck: <https://suprduprnatural.github.io/supr-pedals/clack#> .
+
+ck:noiseGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Noise" ;
+    lv2:symbol "noiseGroup" .
+
+ck:expanderGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Expander" ;
+    lv2:symbol "expanderGroup" .
+
+ck:monitorGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Monitor" ;
+    lv2:symbol "monitorGroup" .
+
+<https://suprduprnatural.github.io/supr-pedals/clack>
+    a lv2:Plugin , lv2:DynamicsPlugin ;
+    doap:name "SuprClack" ;
+    doap:license <https://opensource.org/licenses/MIT> ;
+    lv2:minorVersion 1 ;
+    lv2:microVersion 0 ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    mod:brand "Supr" ;
+    mod:label "SuprClack" ;
+    rdfs:comment "Cleanup for everything a player adds that is not the note. Clack shaves the click a fret slap adds — only the excess over what the note itself justifies, so clean attacks pass. Scrape runs a pitch-tracked harmonic sieve while a note rings: the note's own harmonic series passes exactly, and finger scrapes, sympathetic undertones and non-harmonic hash are turned down when they rise above what a real note's residual occupies; between notes the same knob tames shift squeaks. A low-band-keyed soft expander closes the gaps. Looks 2 ms ahead (the reported latency) so clicks are caught from their first sample and notes pre-open the gate." ;
+    lv2:port [
+        a lv2:AudioPort , lv2:InputPort ;
+        lv2:index 0 ;
+        lv2:symbol "in" ;
+        lv2:name "In" ;
+    ] , [
+        a lv2:AudioPort , lv2:OutputPort ;
+        lv2:index 1 ;
+        lv2:symbol "out" ;
+        lv2:name "Out" ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 2 ;
+        lv2:symbol "clack" ;
+        lv2:name "Clack" ;
+        pg:group ck:noiseGroup ;
+        lv2:default 50.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 100.0 ;
+        units:unit units:pc ;
+        rdfs:comment "How much of a detected fret-click's excess is removed. 100 shaves a slap back to the brightness the note itself earns; 0 turns the section off." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 3 ;
+        lv2:symbol "scrape" ;
+        lv2:name "Scrape" ;
+        pg:group ck:noiseGroup ;
+        lv2:default 50.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 100.0 ;
+        units:unit units:pc ;
+        rdfs:comment "The sustained-noise section: the harmonic sieve inside notes (scrapes, sympathetic undertones, non-harmonic hash) and the squeak duck between them. 0 turns both off. The sieve only ever engages while the pitch tracker is confident, and stands down rather than touch anything it is unsure about." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 4 ;
+        lv2:symbol "sense" ;
+        lv2:name "Sense" ;
+        pg:group ck:noiseGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -12.0 ;
+        lv2:maximum 12.0 ;
+        pprops:rangeSteps 25 ;
+        units:unit units:db ;
+        rdfs:comment "What counts as too bright for the click and squeak detectors, relative to the note being played. 0 is calibrated for fingerstyle; positive is stricter, negative gives slap and picks more room." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 5 ;
+        lv2:symbol "focus" ;
+        lv2:name "Focus" ;
+        pg:group ck:noiseGroup ;
+        lv2:default 700.0 ;
+        lv2:minimum 200.0 ;
+        lv2:maximum 4000.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:hz ;
+        rdfs:comment "The click and squeak ducks act only above this; the note below is never ducked by them." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 6 ;
+        lv2:symbol "thresh" ;
+        lv2:name "Thresh" ;
+        pg:group ck:expanderGroup ;
+        lv2:default -55.0 ;
+        lv2:minimum -90.0 ;
+        lv2:maximum -20.0 ;
+        units:unit units:db ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value -90.0 ] ;
+        rdfs:comment "Where the expander starts. Keyed on the low band only, so finger squeak cannot hold it open and a ghost-note thump opens it like any note. -90 = off." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 7 ;
+        lv2:symbol "range" ;
+        lv2:name "Range" ;
+        pg:group ck:expanderGroup ;
+        lv2:default 15.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 40.0 ;
+        pprops:rangeSteps 41 ;
+        units:unit units:db ;
+        rdfs:comment "The most the expander will turn the gaps down. 12-18 cleans up without sounding gated; 40 is a hard gate." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 8 ;
+        lv2:symbol "release" ;
+        lv2:name "Release" ;
+        pg:group ck:expanderGroup ;
+        lv2:default 150.0 ;
+        lv2:minimum 30.0 ;
+        lv2:maximum 800.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:ms ;
+        rdfs:comment "How fast the gaps close on a decaying tail. A hand mute closes up to 3.5x faster than this on its own, so tight playing stays tight at slow settings." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 14 ;
+        lv2:symbol "delta" ;
+        lv2:name "Delta" ;
+        pg:group ck:monitorGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled ;
+        rdfs:comment "Monitor what is being REMOVED instead of what is passed — the difference between your dry signal and the output. Everything you hear here is what the pedal took out, so if you can hear the note in it, back the sections off until you cannot." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 9 ;
+        lv2:symbol "latency" ;
+        lv2:name "Latency" ;
+        lv2:designation lv2:latency ;
+        lv2:default 96.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 512.0 ;
+        lv2:portProperty pprops:notOnGUI , lv2:reportsLatency , lv2:integer ;
+        units:unit units:frame ;
+        rdfs:comment "The 2 ms lookahead — 96 samples at 48 kHz. It is what lets the duck arrive before the click does." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 10 ;
+        lv2:symbol "clackgr" ;
+        lv2:name "Clack GR" ;
+        lv2:default 0.0 ;
+        lv2:minimum -24.0 ;
+        lv2:maximum 0.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:db ;
+        rdfs:comment "High-band click duck currently applied, peak-held for the display meters." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 11 ;
+        lv2:symbol "scrapegr" ;
+        lv2:name "Scrape GR" ;
+        lv2:default 0.0 ;
+        lv2:minimum -15.0 ;
+        lv2:maximum 0.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:db ;
+        rdfs:comment "Sieve and squeak reduction currently applied, peak-held for the display meters." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 12 ;
+        lv2:symbol "expgr" ;
+        lv2:name "Expander GR" ;
+        lv2:default 0.0 ;
+        lv2:minimum -40.0 ;
+        lv2:maximum 0.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:db ;
+        rdfs:comment "Expander reduction currently applied, peak-held for the display meters." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 13 ;
+        lv2:symbol "env" ;
+        lv2:name "Envelope" ;
+        lv2:default -80.0 ;
+        lv2:minimum -80.0 ;
+        lv2:maximum 0.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:db ;
+        rdfs:comment "Key (low band) level. Published for renderers; where the Thresh knob is aimed." ;
+    ] .

@@ -1,0 +1,549 @@
+@prefix atom:   <http://lv2plug.in/ns/ext/atom#> .
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:    <http://moddevices.com/ns/mod#> .
+@prefix param:  <http://lv2plug.in/ns/ext/parameters#> .
+@prefix patch:  <http://lv2plug.in/ns/ext/patch#> .
+@prefix pg:     <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix state:  <http://lv2plug.in/ns/ext/state#> .
+@prefix units:  <http://lv2plug.in/ns/extensions/units#> .
+@prefix work:   <http://lv2plug.in/ns/ext/worker#> .
+@prefix pipedal_ui: <http://github.com/rerdavies/pipedal/ui#> .
+
+@prefix nam: <https://suprduprnatural.github.io/supr-pedals/nam#> .
+
+### Model file properties — one per slot. ###################################
+
+nam:modelA
+    a lv2:Parameter ;
+    rdfs:label "Model" ;
+    mod:fileTypes "nam,nammodel,aidax" ;
+    rdfs:range atom:Path .
+
+nam:modelB
+    a lv2:Parameter ;
+    rdfs:label "Model" ;
+    mod:fileTypes "nam,nammodel,aidax" ;
+    rdfs:range atom:Path .
+
+nam:modelC
+    a lv2:Parameter ;
+    rdfs:label "Model" ;
+    mod:fileTypes "nam,nammodel,aidax" ;
+    rdfs:range atom:Path .
+
+### Control groups ##########################################################
+
+nam:routingGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Routing" ;
+    lv2:symbol "routingGroup" .
+
+nam:ampGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Amp" ;
+    lv2:symbol "ampGroup" .
+
+nam:slotAGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "A" ;
+    lv2:symbol "slotAGroup" .
+
+nam:slotBGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "B" ;
+    lv2:symbol "slotBGroup" .
+
+nam:slotCGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "C" ;
+    lv2:symbol "slotCGroup" .
+
+nam:filterAGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "A Filters" ;
+    lv2:symbol "filterAGroup" .
+
+nam:filterBGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "B Filters" ;
+    lv2:symbol "filterBGroup" .
+
+nam:filterCGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "C Filters" ;
+    lv2:symbol "filterCGroup" .
+
+### The plugin ##############################################################
+
+<https://suprduprnatural.github.io/supr-pedals/nam>
+    a lv2:Plugin , lv2:AmplifierPlugin ;
+    doap:name "SuprNAM" ;
+    doap:license <https://opensource.org/licenses/MIT> ;
+    lv2:minorVersion 1 ;
+    lv2:microVersion 0 ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    lv2:requiredFeature work:schedule ;
+    lv2:extensionData state:interface , work:interface ;
+    mod:brand "Supr" ;
+    mod:label "SuprNAM" ;
+
+    patch:readable nam:modelA , nam:modelB , nam:modelC ;
+    patch:writable nam:modelA , nam:modelB , nam:modelC ;
+
+    rdfs:comment """
+Three neural amp models in one plugin, wired in series, in parallel, or both, with a blend that actually blends.
+
+SuprNAM loads the same .nam and .aidax model files as any other Neural Amp Modeler plugin — everything on tone3000.com works here. What it adds is what you cannot do with three separate instances on a pedalboard: run them into each other, run them alongside each other, and mix the result on controls that were designed for the job.
+
+ROUTING picks one of seven fixed topologies, from a single model up to A into B into C. Empty slots cost nothing, so leaving B and C unloaded makes this an ordinary one-model plugin.
+
+BLEND crossfades the parallel pair. Its default law is linear, not equal-power, because two models fed the same guitar are strongly correlated — an equal-power crossfade would put a 3 dB bump in the middle of the knob. Equal Power is there for the case where the two really are unalike, such as an amp against a clean DI.
+
+Every path gets its own drive, level trim, polarity invert and 0-4 ms alignment trim. DRIVE is the one you will reach for first: models never agree on how hard they want to be hit, and with a single global input gain only one of them can sit in its sweet spot. Polarity and alignment are the other point. Two different amp models genuinely have different phase responses, so summing them combs — that is what two mics on two cabs sounds like, and it is most of the reason to do this at all. Polarity and a fine delay are how you steer it: flip one path and listen, then walk the trim until the low end sits where you want it.
+
+Everything that would quietly sabotage the sum is handled for you. Each path is DC-blocked before the mix, so blending two asymmetric-clipping models does not thump every time you move the knob. Each model is normalised to the same loudness reference first, so the blend crossfades instead of jumping between two volumes. And whether or not the Threaded switch is on, every path in a parallel stage carries exactly the same delay — the threaded engine defers the whole chain by one block or none of it, never one path and not another.
+
+FILTERS: each slot has switchable high-pass and low-pass filters before and after its model. High-passing the input to a model is the classic way to stop a bass note folding a high-gain amp in half; low-passing the output tames fizz without a cab sim. They are 12 dB/oct minimum-phase, so a filter on one path only is also a phase shift on that path only — it will change how the blend combs, not just its tone. That is a tool, but use it knowingly.
+
+THREADED moves the whole chain onto worker threads so parallel models can use the Pi's other cores. It costs one buffer of latency. That is reported on a latency port for hosts that do delay compensation; PiPedal is not currently one of them, so if you run SuprNAM inside a split, expect the threaded branch to sit one buffer behind the other and align it by hand. Measured on a Pi 4 at 1.8 GHz, a standard-architecture Tone3000 model costs about 46 percent of one core, so a single model runs fine inline but two do not fit on the one core the audio thread gets — from two models up, turn Threaded on. If the workers miss their deadline the plugin says so rather than just crackling.
+
+LEVELS are handled with Drive and Level rather than a calibration panel. Every model is normalised to the same -18 LUFS reference on the way out, always, because that is what makes Blend a crossfade instead of a jump between two volumes — but it is not a control, because there is no sane reason to turn it off. There is deliberately no input calibration and no absolute-dBu output mode: input calibration only does anything for models that recorded what level they were trained at, and almost none do (not one of the bass captures this was developed against), while output calibration metadata is missing or plain wrong on most amp models and produces spectacular nonsense when trusted. Set each slot's Drive by ear and even the paths up with Level; that is both simpler and more honest than a calibration figure that silently does nothing.
+
+SuprNAM uses the NeuralAudio library by Mike Oliphant and the Neural Amp Modeler Core project by Steven Atkinson, both MIT. Its LV2 plumbing and the calibration arithmetic come from Robin Davies' TooB Neural Amp Modeler and lv2cairo, also MIT. None of this would exist without their work.
+""" ;
+
+    ### Routing ###########################################################
+
+    lv2:port [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 0 ;
+        lv2:symbol "routing" ;
+        lv2:name "Routing" ;
+        pg:group nam:routingGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 6.0 ;
+        lv2:portProperty lv2:enumeration , lv2:integer ;
+        lv2:scalePoint
+            [ rdfs:label "A" ;             rdf:value 0.0 ] ,
+            [ rdfs:label "A ∥ B" ;         rdf:value 1.0 ] ,
+            [ rdfs:label "A → B" ;         rdf:value 2.0 ] ,
+            [ rdfs:label "A ∥ B ∥ C" ;     rdf:value 3.0 ] ,
+            [ rdfs:label "A → (B ∥ C)" ;   rdf:value 4.0 ] ,
+            [ rdfs:label "(A ∥ B) → C" ;   rdf:value 5.0 ] ,
+            [ rdfs:label "A → B → C" ;     rdf:value 6.0 ] ;
+        rdfs:comment "How the three slots are wired. Unused and empty slots cost nothing." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 1 ;
+        lv2:symbol "blend" ;
+        lv2:name "Blend" ;
+        pg:group nam:routingGroup ;
+        lv2:default 0.5 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        rdfs:comment "Crossfades the parallel pair — A against B, or B against C in the A → (B ∥ C) routing. Has no effect when three models are parallel or when the routing is all series; use the per-slot Level trims there. Only one pair in any routing is ever two wide, so there is never a question of which pair this is moving." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 2 ;
+        lv2:symbol "mixLaw" ;
+        lv2:name "Mix Law" ;
+        pg:group nam:routingGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty lv2:enumeration , lv2:integer ;
+        lv2:scalePoint
+            [ rdfs:label "Linear" ;      rdf:value 0.0 ] ,
+            [ rdfs:label "Equal Power" ; rdf:value 1.0 ] ;
+        rdfs:comment "Linear is right for correlated sources, which two models of the same guitar are: they add closer to +6 dB than +3, so an equal-power crossfade overshoots by up to 3 dB at centre. Switch to Equal Power when the two paths really are unalike — an amp against a clean DI, say — and the linear law starts sounding thin in the middle." ;
+
+    ### Amp ###############################################################
+
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 3 ;
+        lv2:symbol "inputGain" ;
+        lv2:name "Input Gain" ;
+        pg:group nam:ampGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -40.0 ;
+        lv2:maximum 40.0 ;
+        units:unit units:db ;
+        rdfs:comment "Level into the whole plugin, ahead of every model and the gate. Use this to drive the amps harder; use the per-slot Level trims to rebalance them against each other." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 4 ;
+        lv2:symbol "inputLevelOut" ;
+        lv2:name "" ;
+        lv2:default -35.0 ;
+        lv2:minimum -35.0 ;
+        lv2:maximum 20.0 ;
+        units:unit units:db ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 5 ;
+        lv2:symbol "outputGain" ;
+        lv2:name "Output Gain" ;
+        pg:group nam:ampGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -40.0 ;
+        lv2:maximum 40.0 ;
+        units:unit units:db ;
+        rdfs:comment "Level out of the plugin, after the mix and the gate." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 6 ;
+        lv2:symbol "gate" ;
+        lv2:name "Noise Gate" ;
+        pg:group nam:ampGroup ;
+        lv2:default -120.0 ;
+        lv2:minimum -120.0 ;
+        lv2:maximum 0.0 ;
+        units:unit units:db ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value -120.0 ] ;
+        rdfs:comment "One gate for the whole plugin. It watches the clean signal going into the models and acts on the mix coming out of them, which is the only way a gate in front of a high-gain model can make a sensible decision — by the time hiss has been through the amp it is loud and dense and far too late. There is deliberately no per-path gate: three gates opening at slightly different moments would tear a parallel sum apart." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 7 ;
+        lv2:symbol "gateOut" ;
+        lv2:name " " ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 8 ;
+        lv2:symbol "threaded" ;
+        lv2:name "Threaded" ;
+        pg:group nam:ampGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled ;
+        rdfs:comment "Runs the models on worker threads instead of the audio thread, so parallel models can use the Pi's other cores. Costs one buffer of latency, reported on a latency port. Note that PiPedal does not act on that port, so inside a pedalboard split the other branch will not be delayed to match. It is all or nothing by design: the entire chain is deferred by one block, never one path and not another, so parallel paths stay sample-aligned either way. Measured on a Pi 4 at 1.8 GHz: a standard-architecture Tone3000 model costs about 46 percent of one core. One model inline is comfortable. Two inline is over 90 percent of the single core the audio thread runs on, which will not hold up next to the rest of a pedalboard — so from two models up, turn this on and each model gets a core of its own. Lighter architectures (search tone3000 for the feather or nano tags) and A2 models with Slim turned down cost substantially less." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 9 ;
+        lv2:symbol "overloadOut" ;
+        lv2:name " " ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled ;
+        rdfs:comment "Lights when the worker threads miss a deadline and a block is dropped. If this is on, turn Slim down, use lighter models, or use fewer of them." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 10 ;
+        lv2:symbol "latency" ;
+        lv2:name "" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 8192.0 ;
+        lv2:designation lv2:latency ;
+        lv2:portProperty pprops:notOnGUI , lv2:integer ;
+        units:unit units:frame ;
+    ]
+    .
+
+### Per-slot ports ##########################################################
+#
+# Eight controls per slot, in the same order for each, starting at index 14
+# for A, 22 for B and 30 for C. The C++ side indexes them arithmetically, so
+# the stride and the order here have to stay as they are.
+
+<https://suprduprnatural.github.io/supr-pedals/nam> lv2:port
+    [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 11 ; lv2:symbol "driveA" ; lv2:name "Drive" ;
+        pg:group nam:slotAGroup ;
+        lv2:default 0.0 ; lv2:minimum -30.0 ; lv2:maximum 20.0 ;
+        units:unit units:db ;
+        rdfs:comment "How hard this model gets hit, independently of the others. This is the control that matters most when two models disagree, and it is not the same as the global Input Gain: most models in circulation never recorded the level they were trained at, and the useful input range across them runs from about -6 dBFS down to -30 dBFS. With one global gain and two models in parallel, at most one of them can sit in its own sweet spot. Too hot and a model does not clip, it goes fizzy and muddy with a rising noise floor, and the onset is gradual enough to miss - if a model sounds like a bad amp sim from fifteen years ago, this is usually why. Start at 0, and when in doubt come down; -12 is a sane opening bid for a model that offers no guidance. Pair it with Level to put the loudness back afterwards." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 12 ; lv2:symbol "levelA" ; lv2:name "Level" ;
+        pg:group nam:slotAGroup ;
+        lv2:default 0.0 ; lv2:minimum -60.0 ; lv2:maximum 12.0 ;
+        units:unit units:db ;
+        rdfs:comment "Trim on top of the mix. In a parallel stage the stage already normalises itself, so this rebalances the paths against each other rather than acting as the fader. In a series chain it is the inter-stage drive control — how hard this model hits the next one — which is one of the most tone-defining controls here." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 13 ; lv2:symbol "slimA" ; lv2:name "Slim" ;
+        pg:group nam:slotAGroup ;
+        lv2:default 0.0 ; lv2:minimum 0.0 ; lv2:maximum 1.0 ;
+        lv2:portProperty pprops:expensive ;
+        rdfs:comment "Quality against CPU, for A2 models trained as slimmable. Turn it down to buy headroom for another model. Does nothing to models that were not trained for it." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 14 ; lv2:symbol "polarityA" ; lv2:name "Ø" ;
+        pg:group nam:slotAGroup ;
+        lv2:default 0.0 ; lv2:minimum 0.0 ; lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled ;
+        rdfs:comment "Flips this path. Half of aligning two parallel models: flip one, and if it gets fuller rather than thinner, leave it flipped." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 15 ; lv2:symbol "delayA" ; lv2:name "Align" ;
+        pg:group nam:slotAGroup ;
+        lv2:default 0.0 ; lv2:minimum 0.0 ; lv2:maximum 4.0 ;
+        units:unit units:ms ;
+        rdfs:comment "Retards this path by up to 4 ms, with sub-sample resolution. The other half of aligning two parallel models — the same move as sliding one mic track against another. Only ever delays, never advances, because all that matters is the difference between the paths. Zero is a bit-exact passthrough and costs nothing." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 16 ; lv2:symbol "inHpA" ; lv2:name "In HP" ;
+        pg:group nam:filterAGroup ;
+        lv2:default 10.0 ; lv2:minimum 10.0 ; lv2:maximum 1000.0 ;
+        units:unit units:hz ;
+        lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 10.0 ] ;
+        rdfs:comment "High-pass into the model. The classic fix for a low note folding a high-gain amp in half — take the bottom out before the distortion rather than after it. 12 dB/oct." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 17 ; lv2:symbol "inLpA" ; lv2:name "In LP" ;
+        pg:group nam:filterAGroup ;
+        lv2:default 20000.0 ; lv2:minimum 1000.0 ; lv2:maximum 20000.0 ;
+        units:unit units:hz ;
+        lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 20000.0 ] ;
+        rdfs:comment "Low-pass into the model, for taking pick attack off the front of a saturated amp. 12 dB/oct." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 18 ; lv2:symbol "outHpA" ; lv2:name "Out HP" ;
+        pg:group nam:filterAGroup ;
+        lv2:default 10.0 ; lv2:minimum 10.0 ; lv2:maximum 1000.0 ;
+        units:unit units:hz ;
+        lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 10.0 ] ;
+        rdfs:comment "High-pass out of the model. Useful for band-splitting a parallel pair — high-pass one path, low-pass the other, and blend. 12 dB/oct, and like every filter here it is minimum phase, so using it on one path only will change how the blend combs." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 19 ; lv2:symbol "outLpA" ; lv2:name "Out LP" ;
+        pg:group nam:filterAGroup ;
+        lv2:default 20000.0 ; lv2:minimum 1000.0 ; lv2:maximum 20000.0 ;
+        units:unit units:hz ;
+        lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 20000.0 ] ;
+        rdfs:comment "Low-pass out of the model. Tames fizz on a model captured without a cab. 12 dB/oct." ;
+
+    ### B ###
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 20 ; lv2:symbol "driveB" ; lv2:name "Drive" ;
+        pg:group nam:slotBGroup ;
+        lv2:default 0.0 ; lv2:minimum -30.0 ; lv2:maximum 20.0 ;
+        units:unit units:db ;
+        rdfs:comment "How hard model B gets hit, independently of A and C. See Drive A." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 21 ; lv2:symbol "levelB" ; lv2:name "Level" ;
+        pg:group nam:slotBGroup ;
+        lv2:default 0.0 ; lv2:minimum -60.0 ; lv2:maximum 12.0 ;
+        units:unit units:db ;
+        rdfs:comment "Trim on top of the mix for slot B. See Level A." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 22 ; lv2:symbol "slimB" ; lv2:name "Slim" ;
+        pg:group nam:slotBGroup ;
+        lv2:default 0.0 ; lv2:minimum 0.0 ; lv2:maximum 1.0 ;
+        lv2:portProperty pprops:expensive ;
+        rdfs:comment "Quality against CPU for slot B, on slimmable A2 models." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 23 ; lv2:symbol "polarityB" ; lv2:name "Ø" ;
+        pg:group nam:slotBGroup ;
+        lv2:default 0.0 ; lv2:minimum 0.0 ; lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled ;
+        rdfs:comment "Flips slot B. This is usually the one you reach for, with A left alone as the reference." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 24 ; lv2:symbol "delayB" ; lv2:name "Align" ;
+        pg:group nam:slotBGroup ;
+        lv2:default 0.0 ; lv2:minimum 0.0 ; lv2:maximum 4.0 ;
+        units:unit units:ms ;
+        rdfs:comment "Retards slot B by up to 4 ms, with sub-sample resolution. See Align A." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 25 ; lv2:symbol "inHpB" ; lv2:name "In HP" ;
+        pg:group nam:filterBGroup ;
+        lv2:default 10.0 ; lv2:minimum 10.0 ; lv2:maximum 1000.0 ;
+        units:unit units:hz ; lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 10.0 ] ;
+        rdfs:comment "High-pass into model B. 12 dB/oct." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 26 ; lv2:symbol "inLpB" ; lv2:name "In LP" ;
+        pg:group nam:filterBGroup ;
+        lv2:default 20000.0 ; lv2:minimum 1000.0 ; lv2:maximum 20000.0 ;
+        units:unit units:hz ; lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 20000.0 ] ;
+        rdfs:comment "Low-pass into model B. 12 dB/oct." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 27 ; lv2:symbol "outHpB" ; lv2:name "Out HP" ;
+        pg:group nam:filterBGroup ;
+        lv2:default 10.0 ; lv2:minimum 10.0 ; lv2:maximum 1000.0 ;
+        units:unit units:hz ; lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 10.0 ] ;
+        rdfs:comment "High-pass out of model B. Pair with Out LP A to split the two paths by band. 12 dB/oct." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 28 ; lv2:symbol "outLpB" ; lv2:name "Out LP" ;
+        pg:group nam:filterBGroup ;
+        lv2:default 20000.0 ; lv2:minimum 1000.0 ; lv2:maximum 20000.0 ;
+        units:unit units:hz ; lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 20000.0 ] ;
+        rdfs:comment "Low-pass out of model B. 12 dB/oct." ;
+
+    ### C ###
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 29 ; lv2:symbol "driveC" ; lv2:name "Drive" ;
+        pg:group nam:slotCGroup ;
+        lv2:default 0.0 ; lv2:minimum -30.0 ; lv2:maximum 20.0 ;
+        units:unit units:db ;
+        rdfs:comment "How hard model C gets hit, independently of A and B. See Drive A." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 30 ; lv2:symbol "levelC" ; lv2:name "Level" ;
+        pg:group nam:slotCGroup ;
+        lv2:default 0.0 ; lv2:minimum -60.0 ; lv2:maximum 12.0 ;
+        units:unit units:db ;
+        rdfs:comment "Trim on top of the mix for slot C. See Level A." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 31 ; lv2:symbol "slimC" ; lv2:name "Slim" ;
+        pg:group nam:slotCGroup ;
+        lv2:default 0.0 ; lv2:minimum 0.0 ; lv2:maximum 1.0 ;
+        lv2:portProperty pprops:expensive ;
+        rdfs:comment "Quality against CPU for slot C, on slimmable A2 models." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 32 ; lv2:symbol "polarityC" ; lv2:name "Ø" ;
+        pg:group nam:slotCGroup ;
+        lv2:default 0.0 ; lv2:minimum 0.0 ; lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled ;
+        rdfs:comment "Flips slot C." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 33 ; lv2:symbol "delayC" ; lv2:name "Align" ;
+        pg:group nam:slotCGroup ;
+        lv2:default 0.0 ; lv2:minimum 0.0 ; lv2:maximum 4.0 ;
+        units:unit units:ms ;
+        rdfs:comment "Retards slot C by up to 4 ms, with sub-sample resolution. See Align A." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 34 ; lv2:symbol "inHpC" ; lv2:name "In HP" ;
+        pg:group nam:filterCGroup ;
+        lv2:default 10.0 ; lv2:minimum 10.0 ; lv2:maximum 1000.0 ;
+        units:unit units:hz ; lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 10.0 ] ;
+        rdfs:comment "High-pass into model C. 12 dB/oct." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 35 ; lv2:symbol "inLpC" ; lv2:name "In LP" ;
+        pg:group nam:filterCGroup ;
+        lv2:default 20000.0 ; lv2:minimum 1000.0 ; lv2:maximum 20000.0 ;
+        units:unit units:hz ; lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 20000.0 ] ;
+        rdfs:comment "Low-pass into model C. 12 dB/oct." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 36 ; lv2:symbol "outHpC" ; lv2:name "Out HP" ;
+        pg:group nam:filterCGroup ;
+        lv2:default 10.0 ; lv2:minimum 10.0 ; lv2:maximum 1000.0 ;
+        units:unit units:hz ; lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 10.0 ] ;
+        rdfs:comment "High-pass out of model C. 12 dB/oct." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 37 ; lv2:symbol "outLpC" ; lv2:name "Out LP" ;
+        pg:group nam:filterCGroup ;
+        lv2:default 20000.0 ; lv2:minimum 1000.0 ; lv2:maximum 20000.0 ;
+        units:unit units:hz ; lv2:portProperty pprops:logarithmic ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 20000.0 ] ;
+        rdfs:comment "Low-pass out of model C. 12 dB/oct." ;
+
+    ### Audio and atom ports ##############################################
+
+    ] , [
+        a lv2:AudioPort , lv2:InputPort ;
+        lv2:index 38 ; lv2:symbol "in" ; lv2:name "In" ;
+    ] , [
+        a lv2:AudioPort , lv2:OutputPort ;
+        lv2:index 39 ; lv2:symbol "out" ; lv2:name "Out" ;
+    ] , [
+        a atom:AtomPort , lv2:InputPort ;
+        atom:bufferType atom:Sequence ;
+        atom:supports patch:Message ;
+        lv2:designation lv2:control ;
+        lv2:index 40 ; lv2:symbol "control" ; lv2:name "Control" ;
+    ] , [
+        a atom:AtomPort , lv2:OutputPort ;
+        atom:bufferType atom:Sequence ;
+        atom:supports patch:Message ;
+        lv2:designation lv2:control ;
+        lv2:index 41 ; lv2:symbol "notify" ; lv2:name "Notify" ;
+    ]
+    .
+
+### PiPedal UI ##############################################################
+#
+# Three file properties, one per slot. PiPedal's plugin host keeps these in a
+# vector and its control view iterates over them, so three model browsers need
+# nothing on the server side that one would not.
+
+<https://suprduprnatural.github.io/supr-pedals/nam> pipedal_ui:ui nam:ui .
+
+nam:ui
+    a pipedal_ui:ui ;
+    pipedal_ui:fileProperties
+    [
+        a pipedal_ui:fileProperty ;
+        rdfs:label "Model" ;
+        pipedal_ui:directory "NeuralAmpModels" ;
+        pg:group nam:slotAGroup ;
+        lv2:index 100 ;
+        pipedal_ui:patchProperty nam:modelA ;
+        pipedal_ui:fileTypes
+            [ a pipedal_ui:fileType ; rdfs:label ".nam file" ;
+              pipedal_ui:fileExtension ".nam" ;
+              pipedal_ui:mimeType "application/octet-stream" ] ,
+            [ a pipedal_ui:fileType ; rdfs:label ".aidax file" ;
+              pipedal_ui:fileExtension ".aidax" ;
+              pipedal_ui:mimeType "application/octet-stream" ] ;
+    ] ,
+    [
+        a pipedal_ui:fileProperty ;
+        rdfs:label "Model" ;
+        pipedal_ui:directory "NeuralAmpModels" ;
+        pg:group nam:slotBGroup ;
+        lv2:index 101 ;
+        pipedal_ui:patchProperty nam:modelB ;
+        pipedal_ui:fileTypes
+            [ a pipedal_ui:fileType ; rdfs:label ".nam file" ;
+              pipedal_ui:fileExtension ".nam" ;
+              pipedal_ui:mimeType "application/octet-stream" ] ,
+            [ a pipedal_ui:fileType ; rdfs:label ".aidax file" ;
+              pipedal_ui:fileExtension ".aidax" ;
+              pipedal_ui:mimeType "application/octet-stream" ] ;
+    ] ,
+    [
+        a pipedal_ui:fileProperty ;
+        rdfs:label "Model" ;
+        pipedal_ui:directory "NeuralAmpModels" ;
+        pg:group nam:slotCGroup ;
+        lv2:index 102 ;
+        pipedal_ui:patchProperty nam:modelC ;
+        pipedal_ui:fileTypes
+            [ a pipedal_ui:fileType ; rdfs:label ".nam file" ;
+              pipedal_ui:fileExtension ".nam" ;
+              pipedal_ui:mimeType "application/octet-stream" ] ,
+            [ a pipedal_ui:fileType ; rdfs:label ".aidax file" ;
+              pipedal_ui:fileExtension ".aidax" ;
+              pipedal_ui:mimeType "application/octet-stream" ] ;
+    ] .

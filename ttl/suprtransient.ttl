@@ -1,0 +1,143 @@
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:    <http://moddevices.com/ns/mod#> .
+@prefix param:  <http://lv2plug.in/ns/ext/parameters#> .
+@prefix pg:     <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix units:  <http://lv2plug.in/ns/extensions/units#> .
+
+@prefix tr: <https://suprduprnatural.github.io/supr-pedals/transient#> .
+
+tr:shapeGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Shape" ;
+    lv2:symbol "shapeGroup" .
+
+tr:detectorGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Detector" ;
+    lv2:symbol "detectorGroup" .
+
+tr:outputGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Output" ;
+    lv2:symbol "outputGroup" .
+
+<https://suprduprnatural.github.io/supr-pedals/transient>
+    a lv2:Plugin , lv2:DynamicsPlugin ;
+    doap:name "SuprTransient" ;
+    doap:license <https://opensource.org/licenses/MIT> ;
+    lv2:minorVersion 1 ;
+    lv2:microVersion 0 ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    mod:brand "Supr" ;
+    mod:label "SuprTransient" ;
+    rdfs:comment "Attack and sustain shaper matched to a measured SPL Transient Designer. A hit is boosted in proportion to how far it rises above the recent level, so hard hits pop more than soft ones and fast runs are left alone; a rest or a mute re-arms it. A steady tone comes out untouched at any setting. Focus keeps the attack boost off the low end, so you get string definition instead of thump." ;
+    lv2:port [
+        a lv2:AudioPort , lv2:InputPort ;
+        lv2:index 0 ;
+        lv2:symbol "in" ;
+        lv2:name "In" ;
+    ] , [
+        a lv2:AudioPort , lv2:OutputPort ;
+        lv2:index 1 ;
+        lv2:symbol "out" ;
+        lv2:name "Out" ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 2 ;
+        lv2:symbol "attack" ;
+        lv2:name "Attack" ;
+        pg:group tr:shapeGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -100.0 ;
+        lv2:maximum 100.0 ;
+        units:unit units:pc ;
+        rdfs:comment "Emphasises or softens the front of every note. Positive for pick and fret definition, negative for a rounder start." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 3 ;
+        lv2:symbol "sustain" ;
+        lv2:name "Sustain" ;
+        pg:group tr:shapeGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -100.0 ;
+        lv2:maximum 100.0 ;
+        units:unit units:pc ;
+        rdfs:comment "Holds notes up as they decay, or tightens them. Acts in proportion to how fast the note is dying." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 4 ;
+        lv2:symbol "schpf" ;
+        lv2:name "HP" ;
+        pg:group tr:detectorGroup ;
+        lv2:default 150.0 ;
+        lv2:minimum 20.0 ;
+        lv2:maximum 800.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:hz ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 20.0 ] ;
+        rdfs:comment "Sidechain high-pass filter. It changes what the DETECTOR listens to, not what you hear — the audio is never high-passed. The fundamental is the least transient part of a bass note, so high-passing points the followers at the pick and string instead. 20 = off." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 5 ;
+        lv2:symbol "focus" ;
+        lv2:name "Focus" ;
+        pg:group tr:detectorGroup ;
+        lv2:default 20.0 ;
+        lv2:minimum 20.0 ;
+        lv2:maximum 2000.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:hz ;
+        lv2:scalePoint [ rdfs:label "Off" ; rdf:value 20.0 ] ;
+        rdfs:comment "Where the attack shaping is allowed to act. Set it and the boost stops landing on the fundamental, so you add definition without adding thump. 20 = full range." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 6 ;
+        lv2:symbol "level" ;
+        lv2:name "Level" ;
+        pg:group tr:outputGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -12.0 ;
+        lv2:maximum 12.0 ;
+        pprops:rangeSteps 9 ;
+        units:unit units:db ;
+        rdfs:comment "Output trim." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 7 ;
+        lv2:symbol "hr" ;
+        lv2:name "HR" ;
+        pg:group tr:outputGroup ;
+        lv2:default 12.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 24.0 ;
+        pprops:rangeSteps 9 ;
+        units:unit units:db ;
+        lv2:portProperty pprops:hasStrictBounds ;
+        rdfs:comment "Headroom calibration in 3 dB steps. The 12 dB centre is the calibrated default; the control supplies -12 to +12 dB around it without touching the audio level. Raising it makes the detector act as though you played harder, while lowering it backs off the attack authority." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 8 ;
+        lv2:symbol "gain" ;
+        lv2:name "Gain" ;
+        lv2:default 0.0 ;
+        lv2:minimum -24.0 ;
+        lv2:maximum 24.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:db ;
+        rdfs:comment "Gain currently being applied, peak-held for the display meters." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 9 ;
+        lv2:symbol "env" ;
+        lv2:name "Envelope" ;
+        lv2:default -80.0 ;
+        lv2:minimum -80.0 ;
+        lv2:maximum 0.0 ;
+        lv2:portProperty pprops:notOnGUI ;
+        units:unit units:db ;
+        rdfs:comment "Detector level. Not drawn by the current face; published for other renderers." ;
+    ] .

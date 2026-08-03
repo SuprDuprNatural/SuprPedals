@@ -1,0 +1,161 @@
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:    <http://moddevices.com/ns/mod#> .
+@prefix param:  <http://lv2plug.in/ns/ext/parameters#> .
+@prefix pg:     <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix units:  <http://lv2plug.in/ns/extensions/units#> .
+
+@prefix sans: <https://suprduprnatural.github.io/supr-pedals/sans#> .
+
+sans:driveGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Drive" ;
+    lv2:symbol "driveGroup" .
+
+sans:toneGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Tone" ;
+    lv2:symbol "toneGroup" .
+
+sans:outputGroup
+    a param:ControlGroup , pg:InputGroup ;
+    lv2:name "Output" ;
+    lv2:symbol "outputGroup" .
+
+<https://suprduprnatural.github.io/supr-pedals/sans>
+    a lv2:Plugin , lv2:DistortionPlugin ;
+    doap:name "SuprSans" ;
+    doap:license <https://opensource.org/licenses/MIT> ;
+    lv2:minorVersion 3 ;
+    lv2:microVersion 0 ;
+    lv2:optionalFeature lv2:hardRTCapable ;
+    mod:brand "Supr" ;
+    mod:label "SuprSans" ;
+    rdfs:comment "Bass tone-shaping driver and DI preamp. The saturator curve, the speaker voicing (including its 3.6 kHz notch) and the drive taper are least-squares fits to measurements of a real Tech 21 SansAmp Bass Driver: the voicing matches within 0.3 dB rms from 25 Hz to 12 kHz, and output level, peak and crest factor track it within 0.7 dB across the whole Drive knob. Symmetric, odd-harmonic saturation that is never entirely clean, so grit is available without burying the knob. Blend mixes a sample-aligned clean path, so no blend setting combs out the low end. Active 3-band stack with a mid sweeping 160 Hz to 3 kHz. Put it in front of your amp sim." ;
+    lv2:port [
+        a lv2:AudioPort , lv2:InputPort ;
+        lv2:index 0 ;
+        lv2:symbol "in" ;
+        lv2:name "In" ;
+    ] , [
+        a lv2:AudioPort , lv2:OutputPort ;
+        lv2:index 1 ;
+        lv2:symbol "out" ;
+        lv2:name "Out" ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 2 ;
+        lv2:symbol "drive" ;
+        lv2:name "Drive" ;
+        pg:group sans:driveGroup ;
+        lv2:default 3.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 10.0 ;
+        rdfs:comment "Calibrated against a real SansAmp so 0 / 2.5 / 5 / 7.5 / 10 land on its own clean / low / mid / high / maxed settings, matched on harmonic content within 1 dB at every point. The curve is always slightly dirty, so even 0 has grit; higher settings push more of each note — including its decay — into the grind. Peak output stays roughly level across the knob, so this changes character far more than volume." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 3 ;
+        lv2:symbol "blend" ;
+        lv2:name "Blend" ;
+        pg:group sans:driveGroup ;
+        lv2:default 0.7 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        rdfs:comment "Clean to driven. The two paths are sample-aligned and share the input roll-off, so no setting combs out the low end. At 0 the speaker voicing is gone too, so this doubles as a how-much-amp control." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 4 ;
+        lv2:symbol "bass" ;
+        lv2:name "Bass" ;
+        pg:group sans:toneGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -14.0 ;
+        lv2:maximum 14.0 ;
+        units:unit units:db ;
+        rdfs:comment "Low shelf at 100 Hz." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 5 ;
+        lv2:symbol "mid" ;
+        lv2:name "Mid" ;
+        pg:group sans:toneGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -14.0 ;
+        lv2:maximum 14.0 ;
+        units:unit units:db ;
+        rdfs:comment "Peaking band at the Mid Shift frequency. Scoop it for modern, push it for a midrange that cuts through a band." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 6 ;
+        lv2:symbol "midfreq" ;
+        lv2:name "Mid Shift" ;
+        pg:group sans:toneGroup ;
+        lv2:default 750.0 ;
+        lv2:minimum 160.0 ;
+        lv2:maximum 3000.0 ;
+        lv2:portProperty pprops:logarithmic ;
+        units:unit units:hz ;
+        lv2:scalePoint [ rdfs:label "Body" ; rdf:value 160.0 ] ;
+        lv2:scalePoint [ rdfs:label "Clank" ; rdf:value 3000.0 ] ;
+        rdfs:comment "Where the Mid control acts. The band is wide down low (body) and tightens as it climbs (honk, then string clank)." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 7 ;
+        lv2:symbol "treble" ;
+        lv2:name "Treble" ;
+        pg:group sans:toneGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -14.0 ;
+        lv2:maximum 14.0 ;
+        units:unit units:db ;
+        rdfs:comment "High shelf at 2.5 kHz — attack and grind." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 8 ;
+        lv2:symbol "air" ;
+        lv2:name "Air" ;
+        pg:group sans:toneGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled ;
+        rdfs:comment "+5 dB shelf at 4.5 kHz, above the cabinet rolloff: finger and string detail without making the distortion fizzy." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 9 ;
+        lv2:symbol "rumble" ;
+        lv2:name "Rumble" ;
+        pg:group sans:toneGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled ;
+        rdfs:comment "2-pole high-pass at 30 Hz for stage rumble and handling noise. Gentle enough to leave a 5-string low B standing (about -2.5 dB at 31 Hz)." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ;
+        lv2:index 10 ;
+        lv2:symbol "level" ;
+        lv2:name "Level" ;
+        pg:group sans:outputGroup ;
+        lv2:default 0.0 ;
+        lv2:minimum -30.0 ;
+        lv2:maximum 12.0 ;
+        pprops:rangeSteps 15 ;
+        units:unit units:db ;
+        rdfs:comment "Output level." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ;
+        lv2:index 11 ;
+        lv2:symbol "latency" ;
+        lv2:name "Latency" ;
+        lv2:designation lv2:latency ;
+        lv2:default 15.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 64.0 ;
+        lv2:portProperty pprops:notOnGUI , lv2:reportsLatency , lv2:integer ;
+        units:unit units:frame ;
+        rdfs:comment "Halfband oversampler round trip — 15 samples, about 0.3 ms at 48 kHz." ;
+    ] .
