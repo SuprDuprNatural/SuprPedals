@@ -8,7 +8,7 @@ Run `make test` before and after changing a DSP path.
 
 ### Keep the audio callback bounded
 
-The twelve regular pedals use fixed storage and allocate nothing while
+The seventeen regular pedals use fixed storage and allocate nothing while
 processing. Their DSP is header-only so the same implementation runs in the
 LV2 plugin and the offline harness. SuprNAM loads models outside the audio
 thread and uses pre-created real-time workers when Threaded mode is enabled.
@@ -17,8 +17,9 @@ thread and uses pre-created real-time workers when Threaded mode is enabled.
 
 A clean blend is only useful when dry and processed signals arrive together.
 SuprSans, SuprFuzz and SuprBand use one 2× halfband round trip with a fixed
-15-sample delay. Their dry paths use the same delay. SuprNAM either runs its
-whole wet graph inline or delays the whole graph by one block; it never delays
+15-sample delay. Band also matches dry/wet crossover phase before blending.
+SuprNAM either runs its whole wet graph inline or delays the whole graph by
+the negotiated maximum block length; it never delays
 only one branch.
 
 ### Make neutral settings a real identity
@@ -30,7 +31,8 @@ exceptions are documented:
 - SuprClack always carries its reported 2 ms lookahead.
 - SuprChorus uses an LR4 crossover. Its bands sum magnitude-flat through an
   all-pass phase response, so Mix 0 is not bit-exact.
-- The oversampled pedals always carry the 15-sample round trip.
+- Sans, Fuzz and Band carry a 15-sample round trip; Forge carries 23 samples.
+- Band Blend=0 retains the matched crossover allpass phase.
 
 ### Let the DSP publish display state
 
@@ -86,7 +88,9 @@ This is a feed-forward compressor with a soft-knee gain computer and
 attack/release smoothing in the dB domain. The knee widens at low ratios and
 tightens towards limiting ratios. A fourth-order sidechain high-pass stops low
 fundamentals from controlling the whole signal. Makeup and parallel blend are
-smoothed, and gain reduction is published as a meter port.
+smoothed, and gain reduction is published as a meter port. Optional Held Peak
+adds a 40 ms detector hold without lookahead; Peak remains the default. The
+main audio path is unfiltered while DC protection remains in the detector.
 
 ### SuprTransient
 
@@ -115,7 +119,7 @@ the 4.9 dB full-range result.
 ### SuprClack
 
 SuprClack combines a high-frequency transient duck, a pitch-locked harmonic
-sieve, a between-note squeak duck and a low-band-keyed expander. It uses 2 ms
+sieve, a between-note squeak duck and a low-band-keyed hard gate. It uses 2 ms
 of lookahead so the gain is already down when a 1–5 ms click arrives. Its
 algorithm, safety guards and known limitations are documented in
 [SUPRCLACK.md](SUPRCLACK.md).
@@ -170,6 +174,10 @@ dry power over 2.5 seconds, updates only while the gate is open, and warms up
 quickly after engagement. It holds the level match within about 0.6 dB from
 full input down to −24 dB without removing the fuzz's within-note sustain.
 
+Optional Learn measures two seconds of active signal and recommends a bounded
+gain. Apply saves it and selects Held mode, avoiding continuous level tracking.
+See [RELIABILITY.md](RELIABILITY.md) for rejection and persistence rules.
+
 The gate stays open while pitch is still tracked, and the clean blend uses the
 same fixed 15-sample delay as the wet path. Known residuals are 2–3 dB less
 energy than the capture from 1–8 kHz and more transient compression than the
@@ -193,6 +201,10 @@ intermodulation out of the octave below it and preserves the crossover
 reconstruction. The worst measured low-band change across the drive range fell
 from 5.4 dB to 0.11 dB.
 
+Blend uses the clean reference within the same crossover/oversampling path as
+wet. Neutral intermediate blends remain flat; Blend=0 includes crossover phase.
+An integer dry delay alone cannot provide this match.
+
 Compressor timing is derived from each band's frequency: roughly two periods
 for attack and twenty for release, with practical limits. This avoids an
 attack setting that follows the waveform instead of the envelope.
@@ -215,7 +227,8 @@ Up to three Catmull–Rom-interpolated taps share one delay line.
 NAM models are causal: receptive field is history, not output delay. Parallel
 models remain coherent if the host does not introduce different scheduling
 delays. The Threaded engine therefore hands off the complete wet graph and
-returns the previous complete block. Parallel stages may fan out across helper
+returns timestamped samples at a fixed maximum-block delay, including with
+irregular host blocks. Mode switches are asynchronous and crossfaded. Parallel stages may fan out across helper
 cores, but every branch joins before the stage is mixed. Tests cover all seven
 routings and exact cancellation of two identical models with one polarity
 inverted.
@@ -236,7 +249,8 @@ Other important choices:
 - The NAM target omits `-ffast-math` so reassociation cannot break exact
   cancellation between parallel branches.
 
-A normal model uses about 46% of one Pi 4 core at 1.8 GHz. One inline model is
+A previously measured large model used about 46% of one Pi 4 core at 1.8 GHz;
+actual cost depends on the capture and routing. One inline model is
 comfortable; two or three should normally use Threaded mode.
 
 ## Verification

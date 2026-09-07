@@ -1,0 +1,43 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<https://suprduprnatural.github.io/supr-pedals/forge#foundry> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/forge> ; rdfs:label "Foundry" ;
+    lv2:port [ lv2:symbol "drive" ; pset:value 6.5 ],
+    [ lv2:symbol "weight" ; pset:value 0 ],
+    [ lv2:symbol "tight" ; pset:value 180 ],
+    [ lv2:symbol "bite" ; pset:value 3 ],
+    [ lv2:symbol "fizz" ; pset:value 5000 ],
+    [ lv2:symbol "level" ; pset:value -3 ],
+    [ lv2:symbol "comp" ; pset:value 3 ],
+    [ lv2:symbol "gate" ; pset:value -65 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/forge#blacksteel> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/forge> ; rdfs:label "Blacksteel" ;
+    lv2:port [ lv2:symbol "drive" ; pset:value 8.5 ],
+    [ lv2:symbol "weight" ; pset:value 1 ],
+    [ lv2:symbol "tight" ; pset:value 260 ],
+    [ lv2:symbol "bite" ; pset:value 4 ],
+    [ lv2:symbol "fizz" ; pset:value 4500 ],
+    [ lv2:symbol "level" ; pset:value -4 ],
+    [ lv2:symbol "comp" ; pset:value 4 ],
+    [ lv2:symbol "gate" ; pset:value -62 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/forge#molten> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/forge> ; rdfs:label "Molten" ;
+    lv2:port [ lv2:symbol "drive" ; pset:value 10 ],
+    [ lv2:symbol "weight" ; pset:value 0 ],
+    [ lv2:symbol "tight" ; pset:value 100 ],
+    [ lv2:symbol "bite" ; pset:value 1 ],
+    [ lv2:symbol "fizz" ; pset:value 3500 ],
+    [ lv2:symbol "level" ; pset:value -5 ],
+    [ lv2:symbol "comp" ; pset:value 3 ],
+    [ lv2:symbol "gate" ; pset:value -65 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/forge#cold-iron> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/forge> ; rdfs:label "Cold Iron" ;
+    lv2:port [ lv2:symbol "drive" ; pset:value 3 ],
+    [ lv2:symbol "weight" ; pset:value 0 ],
+    [ lv2:symbol "tight" ; pset:value 200 ],
+    [ lv2:symbol "bite" ; pset:value 1 ],
+    [ lv2:symbol "fizz" ; pset:value 7000 ],
+    [ lv2:symbol "level" ; pset:value -1 ],
+    [ lv2:symbol "comp" ; pset:value 2 ],
+    [ lv2:symbol "gate" ; pset:value -70 ] .

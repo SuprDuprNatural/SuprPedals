@@ -25,8 +25,12 @@ enum PortIndex : uint32_t {
     PORT_LATENCY = 9,  // output: the 2 ms lookahead, in samples
     PORT_CLACKGR = 10, // output: HF duck, dB <= 0 (feeds the UI meter)
     PORT_SCRGR   = 11, // output: sieve + squeak duck, dB <= 0
-    PORT_EXPGR   = 12, // output: expander reduction, dB <= 0
+    PORT_EXPGR   = 12, // output: instantaneous gate reduction, dB <= 0
     PORT_ENV     = 13, // output: key level, dB
+    PORT_LEARN = 15,
+    PORT_LEARNED = 16,
+    PORT_LEARN_STATE = 17,
+    PORT_SIEVE_STATE = 18,
     PORT_DELTA   = 14, // monitor the removed signal instead of the output
 };
 
@@ -48,6 +52,10 @@ struct SuprClack {
     float*       scrGr   = nullptr;
     float*       expGr   = nullptr;
     float*       env     = nullptr;
+    const float* learn = nullptr;
+    float* learned = nullptr;
+    float* learnState = nullptr;
+    float* sieveState = nullptr;
 };
 
 LV2_Handle instantiate(const LV2_Descriptor*, double rate, const char*,
@@ -78,6 +86,10 @@ void connect_port(LV2_Handle instance, uint32_t port, void* data)
     case PORT_CLACKGR: self->clackGr = static_cast<float*>(data); break;
     case PORT_SCRGR:   self->scrGr   = static_cast<float*>(data); break;
     case PORT_EXPGR:   self->expGr   = static_cast<float*>(data); break;
+    case PORT_LEARN: self->learn=static_cast<const float*>(data);break;
+    case PORT_LEARNED: self->learned=static_cast<float*>(data);break;
+    case PORT_LEARN_STATE: self->learnState=static_cast<float*>(data);break;
+    case PORT_SIEVE_STATE: self->sieveState=static_cast<float*>(data);break;
     case PORT_ENV:     self->env     = static_cast<float*>(data); break;
     }
 }
@@ -110,6 +122,7 @@ void run(LV2_Handle instance, uint32_t nSamples)
     if (self->delta)
         self->dsp.setDelta(*self->delta > 0.5f);
 
+    self->dsp.setLearn(self->learn && *self->learn > 0.5f);
     self->dsp.process(self->in, self->out, nSamples);
 
     if (self->latency)
@@ -119,7 +132,10 @@ void run(LV2_Handle instance, uint32_t nSamples)
     if (self->scrGr)
         *self->scrGr = self->dsp.scrapeGrDb();
     if (self->expGr)
-        *self->expGr = self->dsp.expGrDb();
+        *self->expGr = self->dsp.gateGrDb();
+    if(self->learned)*self->learned=self->dsp.learnedThreshold();
+    if(self->learnState)*self->learnState=float(self->dsp.learnState());
+    if(self->sieveState)*self->sieveState=float(self->dsp.sieveState());
     if (self->env)
         *self->env = self->dsp.keyDb();
 }

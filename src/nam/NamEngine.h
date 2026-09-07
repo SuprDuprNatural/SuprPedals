@@ -16,28 +16,16 @@
 //
 //     THE WHOLE WET CHAIN FOR A BLOCK IS DEFERRED, OR NONE OF IT IS.
 //
-// The audio thread hands over block N in one piece and collects block N-1's
-// finished output. Everything — input gain, gate, filters, every model, the
-// mix, output gain — happens inside that one deferral. Every path therefore
-// carries exactly the same one-block delay, for every routing, whether a stage
-// runs on one thread or three. There is no arrangement of models or topology
-// that can put two parallel paths at different delays, because no path has a
-// delay of its own to get wrong.
+// A bounded input queue and timestamped output ring retain every sample across
+// variable block lengths. Threaded delay is the negotiated maximum block, not
+// the most recent block. Late results are discarded at their original deadlines
+// instead of replayed out of order. Missing due samples/queue overflow count as
+// overloads. All queue storage is allocated in init().
 //
-// Within the deferred block, a parallel stage still fans out across helper
-// threads — that is where the extra cores actually get used — but the
-// coordinator joins every helper before the stage's outputs are mixed, so the
-// fan-out is invisible in the result. Series stages stay sequential, since
-// their dependency is real; threading them would mean pipelining, and
-// pipelining would mean per-stage latency, and per-stage latency is exactly
-// what must not happen.
-//
-// Latency is reported to the host as one maximum block, on a port carrying
-// lv2:designation lv2:latency. Worth knowing: PiPedal never reads that port —
-// it has no delay compensation at all — so inside a pedalboard split the other
-// branch will not be pulled back to match. The port is there for hosts that do
-// compensate, and because reporting latency honestly is cheap; it is not a
-// promise that anything acts on it.
+// A mode request fades out over 64 samples, waits asynchronously for worker
+// ownership to return, resets the timeline at silence and fades back in over
+// 64 samples after priming. Only reset()/stop() may wait for workers.
+// Parallel graph stages fan out; dependent serial models remain sequential.
 //
 // MUTATING THE GRAPH SAFELY. The coordinator reads graph state while it works,
 // so the audio thread may only touch parameters or swap models while the
@@ -58,7 +46,9 @@
 #include <thread>
 #include <vector>
 
-#ifdef __linux__
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#elif defined(__linux__)
 #include <semaphore.h>
 #else
 #include <condition_variable>
@@ -84,7 +74,14 @@ public:
     Semaphore(const Semaphore&)            = delete;
     Semaphore& operator=(const Semaphore&) = delete;
 
-#ifdef __linux__
+#ifdef __APPLE__
+    Semaphore() : sem_(dispatch_semaphore_create(0)) {}
+    ~Semaphore() { dispatch_release(sem_); }
+    void post() { dispatch_semaphore_signal(sem_); }
+    void wait() { dispatch_semaphore_wait(sem_, DISPATCH_TIME_FOREVER); }
+private:
+    dispatch_semaphore_t sem_;
+#elif defined(__linux__)
     Semaphore() { sem_init(&sem_, 0, 0); }
     ~Semaphore() { sem_destroy(&sem_); }
 
@@ -180,6 +177,8 @@ public:
     // Threading is a whole-plugin decision, never a per-path one.
     void setThreaded(bool on);
     bool threaded() const { return threaded_; }
+    float gateReduction() const { return gateMeter_; }
+    float computePercent() const { return computePercent_; }
 
     // One maximum block when threaded, zero when inline.
     size_t latencySamples() const { return threaded_ ? maxBlock_ : 0; }
@@ -202,10 +201,16 @@ private:
     void drain();
     void coordinatorLoop();
     void runJob();
+    void applyMode();
+    void dispatch();
 
     NamGraph graph_;
     size_t   maxBlock_ = 512;
-    bool     threaded_ = false;
+    bool     threaded_ = false, requested_ = false, processed_ = false;
+    double rate_ = 48000;
+    float jobCost_ = 0, computePercent_ = 0;
+    float transitionGain_ = 1.0f, gateMeter_ = 0.0f;
+    bool fadingIn_ = false;
 
     std::thread       coordinator_;
     NamWorkerPool     pool_;
@@ -218,13 +223,13 @@ private:
     // audio thread touches them exactly when the worker does not.
     std::vector<float> jobIn_;
     std::vector<float> jobOut_;
-    std::vector<float> carry_;
-    size_t             jobLen_   = 0;
-    size_t             carryLen_ = 0;
-    bool               pending_  = false;
+    std::vector<float> queued_, output_;
+    std::vector<uint64_t> queuedTime_, jobTime_, outputTime_;
+    size_t queueRead_ = 0, queueCount_ = 0;
+    uint64_t time_ = 0;
+    size_t jobLen_ = 0;
+    bool pending_ = false;
 
-    // How wide the pool needs to be for the current routing.
-    int currentWidth_ = 1;
 };
 
 } // namespace supr

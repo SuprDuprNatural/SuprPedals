@@ -183,7 +183,7 @@ band:outputGroup
         lv2:default 1.0 ;
         lv2:minimum 0.0 ;
         lv2:maximum 1.0 ;
-        rdfs:comment "Dry to processed. The dry path is a delay, not a filter, so no setting combs." ;
+        rdfs:comment "Clean to processed within the matched crossover path. All blends share crossover phase and 15-sample oversampling delay; Blend 0 is magnitude-flat, not a pure delayed bypass." ;
     ] , [
         a lv2:ControlPort , lv2:InputPort ;
         lv2:index 14 ;

@@ -180,6 +180,7 @@ public:
         dryMs = wetMs = 0.0f;
         matchTarget = matchGain = 1.0f;
         matchWarm = 0;
+        learnState_=0;learnPressed_=false;
         hb.reset();
         gateEnv.reset();
         preHp.reset();
@@ -253,6 +254,18 @@ public:
         levelTarget = std::pow(10.0f, clampf(db, -30.0f, 12.0f) / 20.0f);
     }
 
+    void setMatchMode(int mode) {holdMode_=mode==1;}
+    void setHeldGainDb(float db) {heldGain_=std::pow(10.0f,clampf(std::isfinite(db)?db:0,-18,18)*0.05f);}
+    void setLearn(bool pressed) {
+        if(pressed && !learnPressed_) {
+            learnState_=1;learnCount_=validCount_=0;learnDry_=learnWet_=0;learnInvalid_=false;
+        }
+        learnPressed_=pressed;
+    }
+    int learnState()const{return learnState_;}
+    float learnedGainDb()const{return learnedDb_;}
+    float matchGainDb()const{return 20*std::log10(matchGain);}
+
     // Live state for the UI: tracked pitch and whether the gate is passing.
     float currentNote() const { return trk.gateOpen ? trk.f0() : 0.0f; }
     float currentGate() const { return gateGain; }
@@ -268,7 +281,9 @@ public:
         const float g2 = std::pow(10.0f, kG2Db / 20.0f);
 
         for (uint32_t i = 0; i < n; ++i) {
-            const float x = dcIn.process(in[i] + 1e-12f);
+            const bool finite=std::isfinite(in[i]);
+            const float x = dcIn.process((finite?clampf(in[i],-16,16):0) + 1e-12f);
+            if(!finite && learnState_==1)learnInvalid_=true;
 
             // --- analysis ---------------------------------------------------
             trk.step(x);
@@ -344,8 +359,23 @@ public:
                 matchTarget = clampf(std::sqrt(dryMs / wetMs),
                                      kMatchLo, kMatchHi);
             }
-            matchGain += (matchTarget - matchGain)
-                         * (warming ? aMatchWarm : kSmooth);
+            if(learnState_==1) {
+                ++learnCount_;
+                // Compare only active samples, before existing normalization,
+                // Blend and Level. Rests cannot train a huge gain from silence.
+                if(passing && std::fabs(dry)>1e-4f && std::isfinite(wet)) {
+                    learnDry_+=double(dry)*dry;learnWet_+=double(wet)*wet;++validCount_;
+                }
+                if(learnCount_>=uint32_t(2*fs)) {
+                    if(!learnInvalid_ && validCount_>=uint32_t(.25f*fs) && learnWet_>1e-10) {
+                        learnedDb_=clampf(float(10*std::log10(learnDry_/learnWet_)),-18,18);learnState_=2;
+                    } else learnState_=3; // retain the last recommendation
+                }
+            }
+            const float target=holdMode_?heldGain_:matchTarget;
+            matchGain += (target - matchGain)
+                         * (holdMode_ ? kSmooth : warming ? aMatchWarm : kSmooth);
+            if(holdMode_ && (std::fabs(matchGain-target)<1e-6f || matchGain+(target-matchGain)*kSmooth==matchGain))matchGain=target;
             wet *= matchGain;
 
             blend += (blendTarget - blend) * kSmooth;
@@ -415,6 +445,11 @@ private:
     float blend = 1.0f, level = 1.0f;
     float kSmooth = 0.01f;
     bool  snapGains = true;
+    bool holdMode_=false,learnPressed_=false,learnInvalid_=false;
+    float heldGain_=1,learnedDb_=0;
+    int learnState_=0;
+    uint32_t learnCount_=0,validCount_=0;
+    double learnDry_=0,learnWet_=0;
 };
 
 } // namespace supr

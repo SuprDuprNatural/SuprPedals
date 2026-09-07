@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <chrono>
 
 #include <pthread.h>
 #include <sched.h>
@@ -135,23 +136,28 @@ void NamWorkerPool::run(NamGraph& graph, const int* slots, float* const* bufs,
 
 void NamEngine::init(double rate, size_t maxBlock)
 {
+    rate_=rate;
     maxBlock_ = std::max<size_t>(maxBlock, 16);
     graph_.init(rate, maxBlock_);
     jobIn_.assign(maxBlock_, 0.0f);
     jobOut_.assign(maxBlock_, 0.0f);
-    carry_.assign(maxBlock_, 0.0f);
-    jobLen_   = 0;
-    carryLen_ = 0;
-    pending_  = false;
+    queued_.assign(2*maxBlock_, 0.0f);
+    queuedTime_.assign(2*maxBlock_, 0);
+    jobTime_.assign(maxBlock_, 0);
+    output_.assign(4*maxBlock_+1, 0.0f);
+    outputTime_.assign(output_.size(), UINT64_MAX);
+    queueRead_=queueCount_=jobLen_=0;
+    time_=0; pending_=false; processed_=false;
+    threaded_=requested_=false; transitionGain_=1; fadingIn_=false;
 }
 
 void NamEngine::reset()
 {
     drain();
     graph_.reset();
-    std::fill(carry_.begin(), carry_.end(), 0.0f);
-    carryLen_ = 0;
-    pending_  = false;
+    queueRead_=queueCount_=0; time_=0;
+    std::fill(outputTime_.begin(), outputTime_.end(), UINT64_MAX);
+    pending_=false; processed_=false; transitionGain_=1; fadingIn_=false; gateMeter_=0;
     dropouts_.store(0, std::memory_order_relaxed);
 }
 
@@ -161,6 +167,7 @@ void NamEngine::start()
         return;
     quit_.store(false, std::memory_order_relaxed);
     jobDone_.store(true, std::memory_order_relaxed);
+    pool_.start(kNumSlots-1);
     coordinator_ = std::thread([this] { coordinatorLoop(); });
 }
 
@@ -176,22 +183,23 @@ void NamEngine::stop()
     pending_ = false;
 }
 
-// Switching modes changes the plugin's latency, so it will click either way.
-// What must not happen is a half-drained pipeline surviving the switch: that
-// would leave one block of stale audio to be emitted after the delay had
-// already gone, which is the one thing worse than a click.
+// Request only: no waiting or touching worker-owned graph/buffers.
 void NamEngine::setThreaded(bool on)
 {
-    if (on == threaded_)
-        return;
-    drain();
-    threaded_ = on;
-    carryLen_ = 0;
-    pending_  = false;
+    requested_=on;
+    if(on==threaded_ && transitionGain_<1) fadingIn_=true;
+    if(!processed_ && !pending_) { threaded_=on; }
 }
 
-// Waits out an in-flight job. Only ever called from a user-initiated
-// transition (threading toggled, plugin deactivated), never per block.
+void NamEngine::applyMode()
+{
+    threaded_=requested_;
+    queueRead_=queueCount_=0; time_=0;
+    std::fill(outputTime_.begin(),outputTime_.end(),UINT64_MAX);
+    fadingIn_=true;
+}
+
+// Lifecycle only. Never called from process(), beginBlock() or a mode request.
 void NamEngine::drain()
 {
     if (!pending_)
@@ -215,14 +223,7 @@ void NamEngine::coordinatorLoop()
 
 void NamEngine::runJob()
 {
-    // The pool is sized to the routing rather than to a fixed maximum, so a
-    // Single or a pure-series routing costs no helper threads at all.
-    const int width = graph_.plan().width();
-    if (width != currentWidth_) {
-        currentWidth_ = width;
-        pool_.start(width - 1);
-    }
-
+    const auto start=std::chrono::steady_clock::now();
     graph_.process(jobIn_.data(), jobOut_.data(), jobLen_,
                    [this](const int* slots, float* const* bufs, int count, size_t n) {
                        if (count == 1)
@@ -230,52 +231,82 @@ void NamEngine::runJob()
                        else
                            pool_.run(graph_, slots, bufs, count, n);
                    });
+    jobCost_=float(std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()*rate_/jobLen_*100);
 }
 
 bool NamEngine::beginBlock()
 {
-    if (!threaded_ || !pending_)
-        return true;
-    if (!jobDone_.load(std::memory_order_acquire))
-        return false; // worker still busy — leave the graph alone this block
-
-    std::copy(jobOut_.begin(), jobOut_.begin() + static_cast<long>(jobLen_), carry_.begin());
-    carryLen_ = jobLen_;
-    pending_  = false;
+    if(pending_) {
+        if(!jobDone_.load(std::memory_order_acquire)) return false;
+        for(size_t i=0;i<jobLen_;++i) {
+            const uint64_t due=jobTime_[i]+maxBlock_;
+            // Expired audio must never emerge later at the wrong alignment.
+            if(due>=time_ && due-time_<output_.size()) {
+                const size_t at=due%output_.size();
+                output_[at]=jobOut_[i];outputTime_[at]=due;
+            }
+        }
+        gateMeter_=graph_.gateReduction();
+        computePercent_=jobCost_;
+        pending_=false;
+    }
+    if(requested_!=threaded_ && transitionGain_==0) applyMode();
     return true;
 }
 
-void NamEngine::process(const float* in, float* out, size_t n)
+void NamEngine::dispatch()
 {
-    n = std::min(n, maxBlock_);
-
-    if (!threaded_) {
-        graph_.processInline(in, out, n);
-        return;
+    if(pending_ || queueCount_==0) return;
+    jobLen_=std::min(queueCount_,maxBlock_);
+    for(size_t i=0;i<jobLen_;++i) {
+        const size_t at=(queueRead_+i)%queued_.size();
+        jobIn_[i]=queued_[at];jobTime_[i]=queuedTime_[at];
     }
+    queueRead_=(queueRead_+jobLen_)%queued_.size();queueCount_-=jobLen_;
+    jobDone_.store(false,std::memory_order_release);
+    pending_=true;jobWake_.post();
+}
 
-    // beginBlock() harvests a finished job. Still pending here means the
-    // workers did not make the deadline: emit silence and skip this block's
-    // job rather than letting a second one queue up behind the first.
-    if (pending_) {
-        std::fill(out, out + n, 0.0f);
-        dropouts_.fetch_add(1, std::memory_order_relaxed);
-        return;
+void NamEngine::process(const float* in,float* out,size_t n)
+{
+    if(n==0) return;
+    processed_=true;
+    bool dropout=false;
+    if(!threaded_) {
+        const auto start=std::chrono::steady_clock::now();
+        // Inline can safely subdivide a host block larger than our work buffers.
+        for(size_t off=0;off<n;off+=maxBlock_)
+            graph_.processInline(in+off,out+off,std::min(n-off,maxBlock_));
+        gateMeter_=graph_.gateReduction();
+        computePercent_=float(std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()*rate_/n*100);
+    } else {
+        // Input and output timestamps share a single monotonic sample clock.
+        // Enqueue before emitting, so actual in-place LV2 buffers are safe.
+        for(size_t i=0;i<n;++i) {
+            if(queueCount_<queued_.size()) {
+                const size_t at=(queueRead_+queueCount_)%queued_.size();
+                queued_[at]=in[i];queuedTime_[at]=time_+i;++queueCount_;
+            } else dropout=true;
+        }
+        // Oversized calls violate maxBlockLength. Emit/count missing deadlines,
+        // rather than truncating the host's buffer or silently dropping tails.
+        for(size_t i=0;i<n;++i) {
+            const uint64_t now=time_+i;const size_t at=now%output_.size();
+            if(outputTime_[at]==now) {out[i]=output_[at];outputTime_[at]=UINT64_MAX;}
+            else {out[i]=0; if(now>=maxBlock_)dropout=true;}
+        }
+        if(!(requested_!=threaded_ && transitionGain_==0)) dispatch();
     }
-
-    // Emit the previous block's finished output. carryLen_ of 0 is the one
-    // priming block after threading is switched on.
-    const size_t emit = std::min(carryLen_, n);
-    std::copy(carry_.begin(), carry_.begin() + static_cast<long>(emit), out);
-    std::fill(out + emit, out + n, 0.0f);
-    carryLen_ = 0;
-
-    // Hand this block over whole.
-    std::copy(in, in + n, jobIn_.begin());
-    jobLen_ = n;
-    jobDone_.store(false, std::memory_order_release);
-    pending_ = true;
-    jobWake_.post();
+    for(size_t i=0;i<n;++i) {
+        if(requested_!=threaded_) transitionGain_=std::max(0.0f,transitionGain_-1.0f/64);
+        else if(fadingIn_ && (!threaded_ || time_+i>=maxBlock_)) {
+            transitionGain_=std::min(1.0f,transitionGain_+1.0f/64);
+            if(transitionGain_==1)fadingIn_=false;
+        }
+        out[i]*=transitionGain_;
+    }
+    time_+=n;
+    if(dropout)dropouts_.fetch_add(1,std::memory_order_relaxed);
 }
 
 } // namespace supr

@@ -5,13 +5,11 @@
 // of this with its pre/de-emphasis shelves; SuprEnvelopeFilter does a crude
 // one with a post-filter blend. This makes it the pedal.
 //
-//                      ┌──────────── dry, 15-sample delay ─────────────┐
-//   in ─► DC ─► 2x up ─┤                                               ├► blend
-//                      │  ┌─ LP4(f1) ─ AP2(f2) ─► LOW  ─┐              │
-//                      └──┤                             ├─ sum ─► 2x down
-//                         └─ HP4(f1) ─┬─ LP4(f2) ► MID ─┤              │
-//                                     └─ HP4(f2) ► HIGH ┘              ▼
-//   each band: drive ─► compressor ─► Ø ─► level                out ◄ level
+//   in -> DC -> 2x up -> matched crossover bands -> blend -> 2x down -> level
+// Each band supplies its clean reference before drive/compression/level.
+// Both sides of Blend therefore share crossover phase, even during a sweep.
+// Blend=0 retains the crossover allpass phase and oversampling response; it
+// is magnitude-flat, but is not a pure integer-delayed copy of the input.
 //
 // WHY THE BANDS SUM FLAT. Linkwitz-Riley 4th order is a Butterworth 2nd-order
 // section squared, and LP4 + HP4 is exactly a 2nd-order allpass at the same
@@ -99,8 +97,7 @@ public:
         resetStage2();
         for (int b = 0; b < kBands; ++b)
             band[b].reset();
-        std::memset(dry, 0, sizeof(dry));
-        dryPos = 0;
+        chunkRemaining = 0;
         snap   = true;
     }
 
@@ -171,16 +168,19 @@ public:
         // Coefficients are refreshed once per chunk while per-sample gains
         // glide inside it, so knob moves stay smooth at any host buffer size.
         for (uint32_t off = 0; off < n;) {
-            const uint32_t m = std::min<uint32_t>(n - off, kChunk);
-            slew(m);
+            if (chunkRemaining == 0) {
+                slew(kChunk);
+                chunkRemaining = kChunk;
+            }
+            const uint32_t m = std::min<uint32_t>(n - off, chunkRemaining);
             processChunk(in + off, out + off, m);
             off += m;
+            chunkRemaining -= m;
         }
     }
 
 private:
     static constexpr uint32_t kChunk    = 64;
-    static constexpr int      kDryMask  = 31;
     // Nominal outer edges of the low and high bands, used only to place the
     // compressor time constants. Not filters — nothing is removed here.
     static constexpr float    kLowEdge  = 25.0f;
@@ -478,11 +478,7 @@ private:
         for (uint32_t i = 0; i < m; ++i) {
             const float x = dcIn.process(in[i] + 1e-12f);
 
-            // Dry path: a plain delay line, matched to the halfband's exact
-            // integer round trip. Not a filter, so Blend cannot comb.
-            dry[dryPos & kDryMask] = x;
-            const float d          = dry[(dryPos - kLatency) & kDryMask];
-            ++dryPos;
+            blend += (blendT - blend) * kSmBase;
 
             float os[2];
             hb.up(x, os);
@@ -490,9 +486,8 @@ private:
             os[1] = wetStage(os[1]);
             const float wet = hb.down(os);
 
-            blend += (blendT - blend) * kSmBase;
             outLvl += (outT - outLvl) * kSmBase;
-            out[i] = outLvl * (d + blend * (wet - d));
+            out[i] = outLvl * wet;
         }
     }
 
@@ -502,14 +497,20 @@ private:
         const float lo = lp1b.process(lp1a.process(x));
         const float hi = hp1b.process(hp1a.process(x));
 
-        if (bands == BANDS_2)
-            return band[LOW].process(lo, kSm) + band[HIGH].process(hi, kSm);
+        if (bands == BANDS_2) {
+            const float clean = lo + hi;
+            const float wet = band[LOW].process(lo, kSm) + band[HIGH].process(hi, kSm);
+            return clean + blend * (wet - clean);
+        }
 
         const float mid = lp2b.process(lp2a.process(hi));
         const float top = hp2b.process(hp2a.process(hi));
         // apLow is what makes the three-way sum flat — see the header note.
-        return band[LOW].process(apLow.process(lo), kSm)
-               + band[MID].process(mid, kSm) + band[HIGH].process(top, kSm);
+        const float low = apLow.process(lo);
+        const float clean = low + mid + top;
+        const float wet = band[LOW].process(low, kSm)
+                          + band[MID].process(mid, kSm) + band[HIGH].process(top, kSm);
+        return clean + blend * (wet - clean);
     }
 
     static constexpr double kQ = 0.70710678; // Butterworth, squared -> LR4
@@ -525,9 +526,6 @@ private:
 
     Band band[kBands];
 
-    float dry[32] = {0};
-    int dryPos    = 0;
-
     int bandsT = BANDS_3, bands = BANDS_3;
     int solo   = SOLO_OFF;
     float split1T = 150.0f, split2T = 1200.0f;
@@ -536,6 +534,7 @@ private:
     float outT = 1.0f, outLvl = 1.0f;
 
     float kSm = 0.001f, kSmBase = 0.002f; // per-sample glide, 2x and base
+    uint32_t chunkRemaining = 0;
     bool snap = true;
 };
 

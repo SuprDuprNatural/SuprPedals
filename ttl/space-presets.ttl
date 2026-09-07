@@ -1,0 +1,27 @@
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+<https://suprduprnatural.github.io/supr-pedals/space#room> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/space> ; rdfs:label "Bass Room" ;
+    lv2:port [ lv2:symbol "mix" ; pset:value 0.15 ],
+    [ lv2:symbol "decay" ; pset:value 0.65 ],
+    [ lv2:symbol "tone" ; pset:value 5500 ],
+    [ lv2:symbol "duck" ; pset:value 0.5 ],
+    [ lv2:symbol "predelay" ; pset:value 8 ],
+    [ lv2:symbol "lowcut" ; pset:value 180 ],
+    [ lv2:symbol "recovery" ; pset:value 250 ],
+    [ lv2:symbol "send" ; pset:value 1 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/space#plate> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/space> ; rdfs:label "Dark Plate" ;
+    lv2:port [ lv2:symbol "mix" ; pset:value 0.23 ],
+    [ lv2:symbol "decay" ; pset:value 2.8 ],
+    [ lv2:symbol "tone" ; pset:value 2800 ],
+    [ lv2:symbol "duck" ; pset:value 0.7 ],
+    [ lv2:symbol "predelay" ; pset:value 28 ],
+    [ lv2:symbol "lowcut" ; pset:value 220 ],
+    [ lv2:symbol "recovery" ; pset:value 450 ],
+    [ lv2:symbol "send" ; pset:value 1 ] .

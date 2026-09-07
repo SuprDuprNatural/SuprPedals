@@ -1,0 +1,71 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+
+<https://suprduprnatural.github.io/supr-pedals/shape#low-b> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/shape> ; rdfs:label "Low-B Cleanup" ;
+    lv2:port [ lv2:symbol "hpf" ; pset:value 15 ],
+    [ lv2:symbol "lpf" ; pset:value 20000 ],
+    [ lv2:symbol "bass" ; pset:value 0 ],
+    [ lv2:symbol "treble" ; pset:value 0 ],
+    [ lv2:symbol "mid_freq" ; pset:value 700 ],
+    [ lv2:symbol "mid_gain" ; pset:value 0 ],
+    [ lv2:symbol "mid_q" ; pset:value 1 ],
+    [ lv2:symbol "level" ; pset:value 0 ],
+    [ lv2:symbol "boom" ; pset:value 0 ],
+    [ lv2:symbol "boom_freq" ; pset:value 120 ],
+    [ lv2:symbol "harsh" ; pset:value 0 ],
+    [ lv2:symbol "harsh_freq" ; pset:value 2500 ],
+    [ lv2:symbol "threshold" ; pset:value -30 ],
+    [ lv2:symbol "release" ; pset:value 250 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/shape#room-boom> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/shape> ; rdfs:label "Room Boom" ;
+    lv2:port [ lv2:symbol "hpf" ; pset:value 0 ],
+    [ lv2:symbol "lpf" ; pset:value 20000 ],
+    [ lv2:symbol "bass" ; pset:value 0 ],
+    [ lv2:symbol "treble" ; pset:value 0 ],
+    [ lv2:symbol "mid_freq" ; pset:value 700 ],
+    [ lv2:symbol "mid_gain" ; pset:value 0 ],
+    [ lv2:symbol "mid_q" ; pset:value 1 ],
+    [ lv2:symbol "level" ; pset:value 0 ],
+    [ lv2:symbol "boom" ; pset:value 9 ],
+    [ lv2:symbol "boom_freq" ; pset:value 120 ],
+    [ lv2:symbol "harsh" ; pset:value 0 ],
+    [ lv2:symbol "harsh_freq" ; pset:value 2500 ],
+    [ lv2:symbol "threshold" ; pset:value -36 ],
+    [ lv2:symbol "release" ; pset:value 250 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/shape#fingerstyle> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/shape> ; rdfs:label "Articulate Fingerstyle" ;
+    lv2:port [ lv2:symbol "hpf" ; pset:value 0 ],
+    [ lv2:symbol "lpf" ; pset:value 20000 ],
+    [ lv2:symbol "bass" ; pset:value 2 ],
+    [ lv2:symbol "treble" ; pset:value 1 ],
+    [ lv2:symbol "mid_freq" ; pset:value 900 ],
+    [ lv2:symbol "mid_gain" ; pset:value 2 ],
+    [ lv2:symbol "mid_q" ; pset:value 1 ],
+    [ lv2:symbol "level" ; pset:value -3 ],
+    [ lv2:symbol "boom" ; pset:value 0 ],
+    [ lv2:symbol "boom_freq" ; pset:value 120 ],
+    [ lv2:symbol "harsh" ; pset:value 0 ],
+    [ lv2:symbol "harsh_freq" ; pset:value 2500 ],
+    [ lv2:symbol "threshold" ; pset:value -30 ],
+    [ lv2:symbol "release" ; pset:value 250 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/shape#pick> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/shape> ; rdfs:label "Controlled Pick" ;
+    lv2:port [ lv2:symbol "hpf" ; pset:value 0 ],
+    [ lv2:symbol "lpf" ; pset:value 20000 ],
+    [ lv2:symbol "bass" ; pset:value 0 ],
+    [ lv2:symbol "treble" ; pset:value 0 ],
+    [ lv2:symbol "mid_freq" ; pset:value 700 ],
+    [ lv2:symbol "mid_gain" ; pset:value 0 ],
+    [ lv2:symbol "mid_q" ; pset:value 1 ],
+    [ lv2:symbol "level" ; pset:value 0 ],
+    [ lv2:symbol "boom" ; pset:value 0 ],
+    [ lv2:symbol "boom_freq" ; pset:value 120 ],
+    [ lv2:symbol "harsh" ; pset:value 8 ],
+    [ lv2:symbol "harsh_freq" ; pset:value 2500 ],
+    [ lv2:symbol "threshold" ; pset:value -36 ],
+    [ lv2:symbol "release" ; pset:value 150 ] .

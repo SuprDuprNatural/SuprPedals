@@ -12,7 +12,7 @@ Missing some noise is preferable to damaging a note.
 ```text
 input ──► 2 ms delay ──► harmonic sieve ──► HF duck ──► Delta/output
    │                           ▲                 ▲
-   ├──► envelopes and gate ────┴─────────────────┘
+   ├──► envelopes and bass gate ──┴─────────────┘
    └──► TunerDsp ──► period
 ```
 
@@ -104,16 +104,27 @@ disproportion duck. The delay prevents a brief loss of confidence during a
 legato change from being mistaken for a gap. It disengages as soon as a note
 locks again.
 
-## Expander: the gaps
+## Gate: the gaps
 
-The expander is keyed by a fixed two-pole 800 Hz low-pass. Real bass notes,
+The gate is keyed by a fixed four-pole 1 kHz low-pass. Real bass notes,
 including palm mutes and ghost notes, contain low-band energy; most clicks and
-squeaks do not. That key choice is more useful than an adjustable filter here.
+squeaks do not. Four poles reject an isolated 3 kHz click by roughly 40 dB in
+the detector while retaining every normal bass fundamental. The audio path is
+still full-range: this filter decides only whether a bass is being played.
 
-The close threshold sits 5 dB below **Thresh**, providing hysteresis through a
-continuous soft-knee law rather than an open/closed state machine. Release is
-program-dependent: a sudden mute closes up to 3.5 times faster than a natural
-decay.
+This is an actual open/closed gate rather than a finite-ratio expander. It
+opens at **Thresh**, closes 6 dB lower, and holds for 25 ms before closing so
+waveform valleys and a tail hovering around the knob cannot chatter. The 0.75
+ms opening ramp fits inside the existing 2 ms lookahead. Closing uses a
+bounded, zero-slope fade: a natural decay takes the selected **Release** time
+(65 ms by default), while a sudden hand mute closes up to 3.5 times faster.
+
+**Range** is literal: 0 through 40 means exactly that many dB of attenuation.
+A separate endpoint displayed as **∞** selects the true hard gate and reaches
+exact digital zero once the smooth close completes. That is important before
+heavy distortion: there is no tiny residual for a high-gain stage to turn
+back into hiss. Range is continuous rather than a 41-detent trim, so its drag
+travel and always-visible value readout match the other main controls.
 
 ## Delta
 
@@ -136,7 +147,9 @@ only removes signal.
 | Clean pluck at Clack 100 | −0.61 dB |
 | Fret click on the same pluck | −23.2 dB |
 | Note beneath that click | 0.00 dB change |
-| Ghost-note thump / equal-level 3 kHz click through expander | −0.4 / −27.3 dB |
+| Ghost-note thump / equal-level 3 kHz click through gate alone | 0.0 / −159.2 dB |
+| Range 40 after bass ends | Exactly −40.0 dB |
+| Range ∞ after bass ends | Exact digital zero |
 | Gap squeak / held bright partial | −9.5 / 0.00 dB |
 | ±30-cent, 5 Hz vibrato | 0.65 dB maximum duck |
 | Six note changes at full settings | 0.00037 excess curvature |
@@ -151,12 +164,12 @@ On a 32.6-second fingerstyle DI, the sieve's removal during normal playing was
 - A hard note change can duck the non-harmonic residual by about 2.6 dB for
   33 ms before the tracker catches up.
 - The sieve is monophonic. On chords and double stops it normally stands down;
-  the clack duck and expander still work.
+  the clack duck and gate still work.
 - After a note change, the sieve needs roughly 150 ms to settle and arm. Fast
   runs receive less scrape reduction than held notes.
 - The detector cannot know whether a slap is intentional. Slap players should
   lower Clack or reduce Sense.
-- The 800 Hz expander key is bass-specific.
+- The four-pole gate key is bass-specific.
 - Very low notes need two periods of history. The buffer is fixed and bounded,
   but it is the largest in the regular pedal set.
 - A board containing SuprTuner and SuprClack runs their separate `TunerDsp`
@@ -172,8 +185,9 @@ On a 32.6-second fingerstyle DI, the sieve's removal during normal playing was
 | Clack only | Scrape 0 |
 
 Set up with Delta enabled, play the material that causes trouble, and adjust
-one section at a time. The three reduction meters show whether Clack, Scrape
-or the expander is acting.
+one section at a time. Clack and Scrape show peak-held reduction. Gate shows
+instantaneous state: empty when open and full only when closed, without peak
+hold or display animation.
 
 ## Future work
 
@@ -199,7 +213,7 @@ make test
     [clack scrape sense focus thresh range release]
 ```
 
-`--wavclack` reports duck events, sieve engagement, expander activity and
+`--wavclack` reports duck events, sieve engagement, gate activity and
 residual distributions. The decisive listening test is Delta, or the
 delay-aligned dry signal minus the processed output. Audible pitched tone in
 that difference is a regression even if aggregate levels look acceptable.

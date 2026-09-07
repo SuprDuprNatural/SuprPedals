@@ -24,9 +24,17 @@ BUNDLE9  = suprchorus.lv2
 BUNDLE10 = suprfuzz.lv2
 BUNDLE11 = suprtransient.lv2
 BUNDLE12 = suprclack.lv2
+BUNDLE13 = suprforge.lv2
+BUNDLE14 = suprecho.lv2
+BUNDLE15 = suprspace.lv2
 
 CXX      ?= g++
 CXXFLAGS += -O3 -ffast-math -Wall -std=c++17
+
+# Stateful DSP must produce identical samples across host block lengths.
+# GCC fast-math/FMA specialization can change the recurrence (including
+# Transient on ARM); use the same strict flags for wrappers and their tests.
+STRICT_DSP_CXXFLAGS = $(filter-out -ffast-math,$(CXXFLAGS)) -ffp-contract=off
 
 # Use system LV2 headers if available, otherwise the vendored copy.
 LV2_CFLAGS := $(shell pkg-config --cflags lv2 2>/dev/null)
@@ -34,7 +42,15 @@ ifeq ($(strip $(LV2_CFLAGS)),)
 LV2_CFLAGS := -Iinclude
 endif
 
-all: build/suproctave.so build/suproctaveplus.so build/suprenvfilter.so build/suprcompressor.so build/suprvu.so build/suprtuner.so build/suprsans.so build/suprchorus.so build/suprband.so build/suprfuzz.so build/suprtransient.so build/suprclack.so
+all: build/suprshape.so build/suprphase.so build/suprecho.so build/suprspace.so build/suproctave.so build/suproctaveplus.so build/suprenvfilter.so build/suprcompressor.so build/suprvu.so build/suprtuner.so build/suprsans.so build/suprchorus.so build/suprband.so build/suprfuzz.so build/suprtransient.so build/suprclack.so build/suprforge.so
+
+build/suprforge.so: Makefile src/SuprForge.cpp src/ForgeDsp.h src/SansDsp.h src/OctaverDsp.h
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprForge.cpp
+
+build/test_forge: Makefile test/test_forge.cpp src/SuprForge.cpp src/ForgeDsp.h src/SansDsp.h src/OctaverDsp.h
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_forge.cpp src/SuprForge.cpp
 
 build/suproctave.so: src/SuprOctave.cpp src/OctaverDsp.h
 	@mkdir -p build
@@ -64,29 +80,29 @@ build/suprsans.so: src/SuprSans.cpp src/SansDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprSans.cpp
 
-build/suprtransient.so: src/SuprTransient.cpp src/TransientDsp.h src/OctaverDsp.h
+build/suprtransient.so: Makefile src/SuprTransient.cpp src/TransientDsp.h src/OctaverDsp.h
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprTransient.cpp
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprTransient.cpp
 
-build/suprclack.so: src/SuprClack.cpp src/ClackDsp.h src/TunerDsp.h src/OctaverDsp.h
+build/suprclack.so: Makefile src/SuprClack.cpp src/ClackDsp.h src/TunerDsp.h src/OctaverDsp.h
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprClack.cpp
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprClack.cpp
 
 build/suprband.so: src/SuprBand.cpp src/BandDsp.h src/SansDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprBand.cpp
 
-build/suprfuzz.so: src/SuprFuzz.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPlusDsp.h src/OctaverDsp.h
+build/suprfuzz.so: Makefile src/SuprFuzz.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPlusDsp.h src/OctaverDsp.h
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprFuzz.cpp
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprFuzz.cpp
 
 build/suprchorus.so: src/SuprChorus.cpp src/ChorusDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprChorus.cpp
 
-build/test_octaver: test/test_octaver.cpp $(wildcard src/*.h)
+build/test_octaver: Makefile test/test_octaver.cpp $(wildcard src/*.h)
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -Isrc -o $@ test/test_octaver.cpp
+	$(CXX) $(STRICT_DSP_CXXFLAGS) -Isrc -o $@ test/test_octaver.cpp
 
 build/test_tuner: test/test_tuner.cpp src/SuprTuner.cpp src/TunerDsp.h src/OctaverDsp.h
 	@mkdir -p build
@@ -101,9 +117,17 @@ build/fuzz_probe: tools/fuzz_probe.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPl
 
 tools: build/fuzz_probe
 
-test: build/test_octaver build/test_tuner
+test: build/test_shape build/test_phase build/test_octaver build/test_tuner build/test_forge build/test_echo build/test_space
+	./build/test_shape
+	./build/test_phase
+	python3 test/validate_tone_motion.py
 	./build/test_octaver
 	./build/test_tuner
+	./build/test_forge
+	python3 test/validate_forge.py
+	./build/test_echo
+	./build/test_space
+	python3 test/validate_time_space.py
 
 demo: build/test_octaver
 	@mkdir -p build/demo
@@ -111,6 +135,17 @@ demo: build/test_octaver
 	@echo "Demo WAVs written to build/demo/"
 
 install: all
+	install -d $(DESTDIR)$(LV2_DIR)/suprshape.lv2
+	install -m 644 build/suprshape.so ttl/suprshape.ttl ttl/shape-presets.ttl $(DESTDIR)$(LV2_DIR)/suprshape.lv2/
+	install -m 644 ttl/shape-manifest.ttl $(DESTDIR)$(LV2_DIR)/suprshape.lv2/manifest.ttl
+	install -d $(DESTDIR)$(LV2_DIR)/suprphase.lv2
+	install -m 644 build/suprphase.so ttl/suprphase.ttl ttl/phase-presets.ttl $(DESTDIR)$(LV2_DIR)/suprphase.lv2/
+	install -m 644 ttl/phase-manifest.ttl $(DESTDIR)$(LV2_DIR)/suprphase.lv2/manifest.ttl
+	install -d $(DESTDIR)$(LV2_DIR)/$(BUNDLE14) $(DESTDIR)$(LV2_DIR)/$(BUNDLE15)
+	install -m 644 build/suprecho.so ttl/suprecho.ttl ttl/echo-presets.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE14)/
+	install -m 644 ttl/echo-manifest.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE14)/manifest.ttl
+	install -m 644 build/suprspace.so ttl/suprspace.ttl ttl/space-presets.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE15)/
+	install -m 644 ttl/space-manifest.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE15)/manifest.ttl
 	install -d $(DESTDIR)$(LV2_DIR)/$(BUNDLE1)
 	install -m 644 build/suproctave.so ttl/suproctave.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE1)/
 	install -m 644 ttl/octave-manifest.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE1)/manifest.ttl
@@ -147,8 +182,14 @@ install: all
 	install -d $(DESTDIR)$(LV2_DIR)/$(BUNDLE12)
 	install -m 644 build/suprclack.so ttl/suprclack.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE12)/
 	install -m 644 ttl/clack-manifest.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE12)/manifest.ttl
+	install -d $(DESTDIR)$(LV2_DIR)/$(BUNDLE13)
+	install -m 644 build/suprforge.so ttl/suprforge.ttl ttl/forge-presets.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE13)/
+	install -m 644 ttl/forge-manifest.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE13)/manifest.ttl
 
 uninstall:
+	rm -rf $(DESTDIR)$(LV2_DIR)/suprshape.lv2 $(DESTDIR)$(LV2_DIR)/suprphase.lv2
+	rm -rf $(DESTDIR)$(LV2_DIR)/$(BUNDLE14) $(DESTDIR)$(LV2_DIR)/$(BUNDLE15)
+	rm -rf $(DESTDIR)$(LV2_DIR)/$(BUNDLE13)
 	rm -rf $(DESTDIR)$(LV2_DIR)/$(BUNDLE1) $(DESTDIR)$(LV2_DIR)/$(BUNDLE2) $(DESTDIR)$(LV2_DIR)/$(BUNDLE3) $(DESTDIR)$(LV2_DIR)/$(BUNDLE4) $(DESTDIR)$(LV2_DIR)/$(BUNDLE5) $(DESTDIR)$(LV2_DIR)/$(BUNDLE6) $(DESTDIR)$(LV2_DIR)/$(BUNDLE7) $(DESTDIR)$(LV2_DIR)/$(BUNDLE8) $(DESTDIR)$(LV2_DIR)/$(BUNDLE9) $(DESTDIR)$(LV2_DIR)/$(BUNDLE10) $(DESTDIR)$(LV2_DIR)/$(BUNDLE11) $(DESTDIR)$(LV2_DIR)/$(BUNDLE12)
 
 clean:
@@ -196,3 +237,70 @@ nam-clean:
 	rm -rf $(NAM_BUILD)
 
 .PHONY: all test demo tools install uninstall clean nam nam-test nam-install nam-clean
+
+# Finite checks and deterministic feedback require strict floating point.
+TIME_SPACE_CXXFLAGS = $(filter-out -ffast-math,$(CXXFLAGS)) -ffp-contract=off
+
+build/suprecho.so: Makefile src/SuprEcho.cpp src/EchoDsp.h src/TimeSpaceDsp.h
+	@mkdir -p build
+	$(CXX) $(TIME_SPACE_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprEcho.cpp
+
+build/test_echo: Makefile test/test_echo.cpp src/SuprEcho.cpp src/EchoDsp.h src/TimeSpaceDsp.h
+	@mkdir -p build
+	$(CXX) $(TIME_SPACE_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_echo.cpp src/SuprEcho.cpp
+
+build/suprspace.so: Makefile src/SuprSpace.cpp src/SpaceDsp.h src/TimeSpaceDsp.h
+	@mkdir -p build
+	$(CXX) $(TIME_SPACE_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprSpace.cpp
+
+build/test_space: Makefile test/test_space.cpp src/SuprSpace.cpp src/SpaceDsp.h src/TimeSpaceDsp.h
+	@mkdir -p build
+	$(CXX) $(TIME_SPACE_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_space.cpp src/SuprSpace.cpp
+
+# Tone/motion: finite checks and reproducible sample-wise state.
+TONE_MOTION_CXXFLAGS = $(filter-out -ffast-math,$(CXXFLAGS)) -ffp-contract=off
+
+build/suprshape.so: Makefile src/SuprShape.cpp src/ShapeDsp.h src/SansDsp.h src/OctaverDsp.h
+	@mkdir -p build
+	$(CXX) $(TONE_MOTION_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprShape.cpp
+
+build/test_shape: test/test_shape.cpp Makefile src/SuprShape.cpp src/ShapeDsp.h src/SansDsp.h src/OctaverDsp.h
+	@mkdir -p build
+	$(CXX) $(TONE_MOTION_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_shape.cpp src/SuprShape.cpp
+
+build/suprphase.so: Makefile src/SuprPhase.cpp src/PhaseDsp.h src/SansDsp.h src/OctaverDsp.h
+	@mkdir -p build
+	$(CXX) $(TONE_MOTION_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprPhase.cpp
+
+build/test_phase: test/test_phase.cpp Makefile src/SuprPhase.cpp src/PhaseDsp.h src/SansDsp.h src/OctaverDsp.h
+	@mkdir -p build
+	$(CXX) $(TONE_MOTION_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_phase.cpp src/SuprPhase.cpp
+
+build/test_band: Makefile test/test_band.cpp test/test_octaver.cpp src/SuprBand.cpp $(wildcard src/*.h)
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_band.cpp src/SuprBand.cpp
+
+test: test-signal-integrity
+
+test-signal-integrity: build/test_band
+
+.PHONY: test-signal-integrity
+
+build/test_clean: Makefile test/test_clean.cpp test/test_octaver.cpp src/SuprCompressor.cpp $(wildcard src/*.h)
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_clean.cpp src/SuprCompressor.cpp
+
+test-signal-integrity: build/test_clean build/test_clack build/test_fuzz_match
+	./build/test_band
+	./build/test_clean
+	./build/test_clack
+	./build/test_fuzz_match
+	python3 test/validate_signal_integrity.py
+
+build/test_clack: Makefile test/test_clack.cpp test/test_octaver.cpp src/SuprClack.cpp $(wildcard src/*.h)
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_clack.cpp src/SuprClack.cpp
+
+build/test_fuzz_match: Makefile test/test_fuzz_match.cpp test/test_octaver.cpp src/SuprFuzz.cpp $(wildcard src/*.h)
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_fuzz_match.cpp src/SuprFuzz.cpp

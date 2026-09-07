@@ -1,0 +1,9 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+<https://suprduprnatural.github.io/supr-pedals/forge> a lv2:Plugin ; lv2:binary <suprforge.so> ; rdfs:seeAlso <suprforge.ttl> .
+
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+<https://suprduprnatural.github.io/supr-pedals/forge#foundry> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/forge> ; rdfs:label "Foundry" ; rdfs:seeAlso <forge-presets.ttl> .
+<https://suprduprnatural.github.io/supr-pedals/forge#blacksteel> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/forge> ; rdfs:label "Blacksteel" ; rdfs:seeAlso <forge-presets.ttl> .
+<https://suprduprnatural.github.io/supr-pedals/forge#molten> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/forge> ; rdfs:label "Molten" ; rdfs:seeAlso <forge-presets.ttl> .
+<https://suprduprnatural.github.io/supr-pedals/forge#cold-iron> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/forge> ; rdfs:label "Cold Iron" ; rdfs:seeAlso <forge-presets.ttl> .

@@ -1,0 +1,37 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+
+<https://suprduprnatural.github.io/supr-pedals/phase#slow> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/phase> ; rdfs:label "Slow Current" ;
+    lv2:port [ lv2:symbol "rate" ; pset:value 0.12 ],
+    [ lv2:symbol "depth" ; pset:value 0.45 ],
+    [ lv2:symbol "centre" ; pset:value 700 ],
+    [ lv2:symbol "feedback" ; pset:value 0.15 ],
+    [ lv2:symbol "mix" ; pset:value 0.35 ],
+    [ lv2:symbol "protect" ; pset:value 1 ],
+    [ lv2:symbol "mode" ; pset:value 0 ],
+    [ lv2:symbol "sensitivity" ; pset:value 0 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/phase#envelope> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/phase> ; rdfs:label "Expressive Envelope" ;
+    lv2:port [ lv2:symbol "rate" ; pset:value 0.3 ],
+    [ lv2:symbol "depth" ; pset:value 0.8 ],
+    [ lv2:symbol "centre" ; pset:value 700 ],
+    [ lv2:symbol "feedback" ; pset:value 0.3 ],
+    [ lv2:symbol "mix" ; pset:value 0.5 ],
+    [ lv2:symbol "protect" ; pset:value 1 ],
+    [ lv2:symbol "mode" ; pset:value 1 ],
+    [ lv2:symbol "sensitivity" ; pset:value 6 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/phase#wide> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/phase> ; rdfs:label "Wide Motion" ;
+    lv2:port [ lv2:symbol "rate" ; pset:value 0.4 ],
+    [ lv2:symbol "depth" ; pset:value 1 ],
+    [ lv2:symbol "centre" ; pset:value 700 ],
+    [ lv2:symbol "feedback" ; pset:value 0.45 ],
+    [ lv2:symbol "mix" ; pset:value 0.5 ],
+    [ lv2:symbol "protect" ; pset:value 1 ],
+    [ lv2:symbol "mode" ; pset:value 0 ],
+    [ lv2:symbol "sensitivity" ; pset:value 0 ] .

@@ -1,0 +1,20 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+
+<https://suprduprnatural.github.io/supr-pedals/phase> a lv2:Plugin, lv2:PhaserPlugin ; doap:name "SuprPhase" ; doap:license <https://opensource.org/licenses/MIT> ; lv2:minorVersion 1 ; lv2:microVersion 0 ; lv2:optionalFeature lv2:hardRTCapable ;
+    rdfs:comment "Mono bass phaser. Linear dry/wet blend produces deliberate moving notches. Clean lows selects protected processing. No transport sync or stereo ports." ;
+    lv2:port [ a lv2:AudioPort, lv2:InputPort ; lv2:index 0 ; lv2:symbol "in" ; lv2:name "In" ],
+    [ a lv2:AudioPort, lv2:OutputPort ; lv2:index 1 ; lv2:symbol "out" ; lv2:name "Out" ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 2 ; lv2:symbol "rate" ; lv2:name "Rate" ; lv2:default 0.3 ; lv2:minimum 0.03 ; lv2:maximum 5 ; units:unit units:hz ; lv2:portProperty pprops:logarithmic ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 3 ; lv2:symbol "depth" ; lv2:name "Depth" ; lv2:default 0.65 ; lv2:minimum 0 ; lv2:maximum 1 ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 4 ; lv2:symbol "centre" ; lv2:name "Centre" ; lv2:default 700 ; lv2:minimum 100 ; lv2:maximum 2500 ; units:unit units:hz ; lv2:portProperty pprops:logarithmic ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 5 ; lv2:symbol "feedback" ; lv2:name "Feedback" ; lv2:default 0.25 ; lv2:minimum -0.75 ; lv2:maximum 0.75 ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 6 ; lv2:symbol "mix" ; lv2:name "Mix" ; lv2:default 0.5 ; lv2:minimum 0 ; lv2:maximum 1 ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 7 ; lv2:symbol "protect" ; lv2:name "Clean lows" ; lv2:default 1 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:integer, lv2:toggled ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 8 ; lv2:symbol "mode" ; lv2:name "Mode" ; lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ; lv2:portProperty lv2:integer, lv2:enumeration ; lv2:scalePoint [ rdfs:label "LFO" ; rdf:value 0 ], [ rdfs:label "Envelope" ; rdf:value 1 ] ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 9 ; lv2:symbol "sensitivity" ; lv2:name "Sensitivity" ; lv2:default 0 ; lv2:minimum -24 ; lv2:maximum 24 ; units:unit units:db ] .

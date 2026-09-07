@@ -17,7 +17,7 @@ ck:noiseGroup
 
 ck:expanderGroup
     a param:ControlGroup , pg:InputGroup ;
-    lv2:name "Expander" ;
+    lv2:name "Gate" ;
     lv2:symbol "expanderGroup" .
 
 ck:monitorGroup
@@ -30,11 +30,11 @@ ck:monitorGroup
     doap:name "SuprClack" ;
     doap:license <https://opensource.org/licenses/MIT> ;
     lv2:minorVersion 1 ;
-    lv2:microVersion 0 ;
+    lv2:microVersion 3 ;
     lv2:optionalFeature lv2:hardRTCapable ;
     mod:brand "Supr" ;
     mod:label "SuprClack" ;
-    rdfs:comment "Cleanup for everything a player adds that is not the note. Clack shaves the click a fret slap adds — only the excess over what the note itself justifies, so clean attacks pass. Scrape runs a pitch-tracked harmonic sieve while a note rings: the note's own harmonic series passes exactly, and finger scrapes, sympathetic undertones and non-harmonic hash are turned down when they rise above what a real note's residual occupies; between notes the same knob tames shift squeaks. A low-band-keyed soft expander closes the gaps. Looks 2 ms ahead (the reported latency) so clicks are caught from their first sample and notes pre-open the gate." ;
+    rdfs:comment "Cleanup for everything a player adds that is not the note. Clack shaves the click a fret slap adds — only the excess over what the note itself justifies, so clean attacks pass. Scrape runs a pitch-tracked harmonic sieve while a note rings: the note's own harmonic series passes exactly, and finger scrapes, sympathetic undertones and non-harmonic hash are turned down when they rise above what a real note's residual occupies; between notes the same knob tames shift squeaks. A bass-keyed gate closes the gaps and reaches exact digital silence at full Range. Looks 2 ms ahead (the reported latency) so clicks are caught from their first sample and notes pre-open the gate." ;
     lv2:port [
         a lv2:AudioPort , lv2:InputPort ;
         lv2:index 0 ;
@@ -102,31 +102,31 @@ ck:monitorGroup
         lv2:maximum -20.0 ;
         units:unit units:db ;
         lv2:scalePoint [ rdfs:label "Off" ; rdf:value -90.0 ] ;
-        rdfs:comment "Where the expander starts. Keyed on the low band only, so finger squeak cannot hold it open and a ghost-note thump opens it like any note. -90 = off." ;
+        rdfs:comment "Where the gate opens. Its four-pole key listens only for bass, so finger squeak and isolated clicks cannot hold it open while a ghost-note thump opens it like any note. It closes 6 dB lower to prevent chatter. -90 = off." ;
     ] , [
         a lv2:ControlPort , lv2:InputPort ;
         lv2:index 7 ;
         lv2:symbol "range" ;
         lv2:name "Range" ;
         pg:group ck:expanderGroup ;
-        lv2:default 15.0 ;
+        lv2:default 41.0 ;
         lv2:minimum 0.0 ;
-        lv2:maximum 40.0 ;
-        pprops:rangeSteps 41 ;
+        lv2:maximum 41.0 ;
         units:unit units:db ;
-        rdfs:comment "The most the expander will turn the gaps down. 12-18 cleans up without sounding gated; 40 is a hard gate." ;
+        lv2:scalePoint [ rdfs:label "∞" ; rdf:value 41.0 ] ;
+        rdfs:comment "How far the closed gate turns gaps down. Values from 0 through 40 mean exactly that many dB. The separate ∞ endpoint is a true mute whose settled output is exact digital zero." ;
     ] , [
         a lv2:ControlPort , lv2:InputPort ;
         lv2:index 8 ;
         lv2:symbol "release" ;
         lv2:name "Release" ;
         pg:group ck:expanderGroup ;
-        lv2:default 150.0 ;
+        lv2:default 65.0 ;
         lv2:minimum 30.0 ;
         lv2:maximum 800.0 ;
         lv2:portProperty pprops:logarithmic ;
         units:unit units:ms ;
-        rdfs:comment "How fast the gaps close on a decaying tail. A hand mute closes up to 3.5x faster than this on its own, so tight playing stays tight at slow settings." ;
+        rdfs:comment "Time for the gate to close on a natural decay. A hand mute closes up to 3.5x faster on its own, while a 25 ms hold and 6 dB hysteresis protect sustained notes and waveform valleys." ;
     ] , [
         a lv2:ControlPort , lv2:InputPort ;
         lv2:index 14 ;
@@ -176,13 +176,13 @@ ck:monitorGroup
         a lv2:ControlPort , lv2:OutputPort ;
         lv2:index 12 ;
         lv2:symbol "expgr" ;
-        lv2:name "Expander GR" ;
+        lv2:name "Gate GR" ;
         lv2:default 0.0 ;
-        lv2:minimum -40.0 ;
+        lv2:minimum -41.0 ;
         lv2:maximum 0.0 ;
         lv2:portProperty pprops:notOnGUI ;
         units:unit units:db ;
-        rdfs:comment "Expander reduction currently applied, peak-held for the display meters." ;
+        rdfs:comment "Instantaneous gate reduction for renderers. This is deliberately not peak-held: 0 is open and -41 is the fully closed infinity endpoint." ;
     ] , [
         a lv2:ControlPort , lv2:OutputPort ;
         lv2:index 13 ;
@@ -194,4 +194,27 @@ ck:monitorGroup
         lv2:portProperty pprops:notOnGUI ;
         units:unit units:db ;
         rdfs:comment "Key (low band) level. Published for renderers; where the Thresh knob is aimed." ;
+    ] , [
+        a lv2:ControlPort , lv2:InputPort ; lv2:index 15 ;
+        lv2:symbol "learn" ; lv2:name "Learn Idle" ;
+        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ;
+        lv2:portProperty lv2:integer , lv2:toggled , pprops:trigger ;
+        rdfs:comment "Mute the strings, then learn for two seconds. Recommends a gate threshold; never trains sustained harmonics as noise or applies the result automatically." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ; lv2:index 16 ;
+        lv2:symbol "learned" ; lv2:name "Suggested Threshold" ;
+        lv2:default -90 ; lv2:minimum -90 ; lv2:maximum -44 ;
+        units:unit units:db ; lv2:portProperty pprops:notOnGUI ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ; lv2:index 17 ;
+        lv2:symbol "learn_state" ; lv2:name "Learn State" ;
+        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 3 ;
+        lv2:portProperty lv2:integer , pprops:notOnGUI ;
+        rdfs:comment "0 idle, 1 learning, 2 recommendation ready, 3 rejected (note, loud input or insufficient noise)." ;
+    ] , [
+        a lv2:ControlPort , lv2:OutputPort ; lv2:index 18 ;
+        lv2:symbol "sieve_state" ; lv2:name "Sieve State" ;
+        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 7 ;
+        lv2:portProperty lv2:integer , pprops:notOnGUI ;
+        rdfs:comment "0 off, 1 no pitch, 2 attack, 3 stale pitch, 4 settling taps, 5 residual veto, 6 active, 7 arming." ;
     ] .

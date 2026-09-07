@@ -67,7 +67,11 @@ enum SlotInfoOffset {
     kSlotHasLoudness,
     kSlotHasInputLevel,
 };
-constexpr size_t kInfoFloatCount = kInfoSlotBase + kNumSlots * kInfoFloatsPerSlot;
+// Optional v1 suffix; existing field offsets and old decoders remain valid.
+constexpr size_t kInfoCompute = kInfoSlotBase + kNumSlots * kInfoFloatsPerSlot;
+constexpr size_t kInfoLatency = kInfoCompute + 1;
+constexpr size_t kInfoThreaded = kInfoCompute + 2;
+constexpr size_t kInfoFloatCount = kInfoCompute + 3;
 constexpr float  kInfoVersionValue = 1.0f;
 
 enum class MessageType { LoadModel, ModelLoaded, FreeModel, SetQuality };
@@ -231,13 +235,8 @@ public:
     // dispatched incoming patch messages by the time we get here.
     void Run(uint32_t n_samples) override
     {
-        // Threaded is read every block, before anything else, and deliberately
-        // outside the beginBlock() guard below. Everything else can wait for a
-        // block where the workers are idle, but this one cannot: when they are
-        // running late the graph is never reported safe to touch, and that is
-        // precisely the moment the user is reaching for this switch to get out
-        // of trouble. Gating it there made the switch stop responding exactly
-        // when it was needed. setThreaded() drains any job in flight itself.
+        // Requests remain responsive while a late worker owns the graph.
+        // The engine completes the fade/ownership transition asynchronously.
         if (cThreaded_.HasChanged())
             engine_.setThreaded(cThreaded_.GetValue() != 0.0f);
 
@@ -253,6 +252,8 @@ public:
         engine_.process(audioIn_, audioOut_, n_samples);
 
         updateMeters(n_samples);
+        infoSamples_ += n_samples;
+        if (infoSamples_ >= uint64_t(getRate()/4)) { infoSamples_=0; sendInfo_=true; }
         if (sendInfo_) {
             sendInfo_ = false;
             sendModelInfo();
@@ -462,7 +463,7 @@ private:
 
     void updateMeters(uint32_t n_samples)
     {
-        cGateOut_.SetValue(engine_.graph().gateReduction());
+        cGateOut_.SetValue(engine_.gateReduction());
         cLatencyOut_.SetValue(static_cast<float>(engine_.latencySamples()));
 
         // Peak of the raw input, in dB, for the level meter.
@@ -476,9 +477,12 @@ private:
 
         const bool overload = engine_.dropouts() != lastDropouts_;
         lastDropouts_ = engine_.dropouts();
-        cOverloadOut_.SetValue(overload ? 1.0f : 0.0f);
-        if (overload != lastOverload_) {
-            lastOverload_ = overload;
+        if (overload) overloadHold_ = uint64_t(getRate());
+        else overloadHold_ = overloadHold_ > n_samples ? overloadHold_ - n_samples : 0;
+        cOverloadOut_.SetValue(overloadHold_ ? 1.0f : 0.0f);
+        const bool heldOverload = overloadHold_ != 0;
+        if (heldOverload != lastOverload_) {
+            lastOverload_ = heldOverload;
             sendInfo_     = true;
         }
     }
@@ -570,6 +574,9 @@ private:
         values[kInfoVersion]  = kInfoVersionValue;
         values[kInfoOverload] = lastOverload_ ? 1.0f : 0.0f;
         values[kInfoHostRate] = static_cast<float>(getRate());
+        values[kInfoCompute] = engine_.computePercent();
+        values[kInfoLatency] = float(engine_.latencySamples());
+        values[kInfoThreaded] = engine_.threaded() ? 1 : 0;
 
         for (int i = 0; i < kNumSlots; ++i) {
             float* slot = values + kInfoSlotBase + i * kInfoFloatsPerSlot;
@@ -689,6 +696,7 @@ private:
     // honest replacement.
     const CalibrationSettings calibration_{InputCalibration::Raw,
                                            OutputCalibration::Normalized, -6.0f};
+    uint64_t overloadHold_ = 0, infoSamples_ = 0;
     NamModel*   models_[kNumSlots]        = {nullptr, nullptr, nullptr};
     NamModel*   pendingModels_[kNumSlots] = {nullptr, nullptr, nullptr};
     bool        pendingClear_[kNumSlots]  = {false, false, false};

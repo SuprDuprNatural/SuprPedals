@@ -714,6 +714,62 @@ static void testLatencyReporting()
     engine.stop();
 }
 
+static void testIrregularAndTransitions()
+{
+    for(size_t maxBlock:{32u,64u,512u}) {
+        StatefulModel modelA,modelB;
+        NamEngine a,b;a.init(kRate,maxBlock);b.init(kRate,maxBlock);a.start();b.start();
+        a.graph().setModel(0,&modelA);b.graph().setModel(0,&modelB);
+        a.graph().setParams(baseParams(Routing::Single));b.graph().setParams(baseParams(Routing::Single));b.setThreaded(true);
+        auto in=testSignal(8192);in.resize(in.size()+maxBlock,0);
+        std::vector<float> x(in.size()),y=in;
+        size_t off=0,block=0;const size_t blocks[]={64,32,64,1,7,127,512,3};
+        while(off<in.size()) {
+            size_t n=std::min({maxBlock,blocks[block++%8],in.size()-off});
+            pump(a,in.data()+off,x.data()+off,n);pump(b,y.data()+off,y.data()+off,n);off+=n;
+        }
+        float err=0;for(size_t i=maxBlock;i<y.size();i++)err=std::max(err,std::abs(y[i]-x[i-maxBlock]));
+        check(err<1e-6 && b.dropouts()==0,"irregular/in-place max %zu: ordered fixed-delay samples, error %.2g",maxBlock,double(err));
+        a.stop();b.stop();
+    }
+    {
+        NamEngine a,b;a.init(kRate,64);b.init(kRate,64);a.start();b.start();
+        float x[64],y[64],reference[64];std::fill_n(x,64,.2f);
+        pump(a,x,y,64);pump(b,x,reference,64);
+        a.setThreaded(true);pump(a,x,y,32);pump(b,x,reference,32);
+        a.setThreaded(false);
+        for(int i=0;i<8;i++){pump(a,x,y,64);pump(b,x,reference,64);}
+        check(std::equal(y,y+64,reference) && !a.threaded(),"cancelled mode transition recovers exact unity gain");
+        a.stop();b.stop();
+    }
+    struct LateModel:NamModelRef {
+        std::atomic<bool> entered{false},release{false};
+        void process(const float* in,float* out,size_t n) override {entered.store(true);while(!release.load())std::this_thread::yield();std::copy(in,in+n,out);}
+        float inputGain()const override{return 1;}float outputGain()const override{return 1;}void reset()override{}
+    } model;
+    NamEngine engine;engine.init(kRate,64);engine.start();engine.graph().setModel(0,&model);engine.setThreaded(true);
+    float x[64],y[64];std::fill_n(x,64,.2f);pump(engine,x,y,64);
+    while(!model.entered.load())std::this_thread::yield();
+    // Worker remains deliberately blocked until after all callback operations.
+    // A waiting callback deadlocks here, so the separate watchdog releases it
+    // and the elapsed-time assertion catches the original drain() behavior.
+    std::thread watchdog([&]{std::this_thread::sleep_for(std::chrono::milliseconds(150));model.release.store(true);});
+    const auto begin=std::chrono::steady_clock::now();
+    engine.setThreaded(false);
+    for(int i=0;i<12;i++){engine.beginBlock();engine.process(x,y,64);}
+    const double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count();
+    check(ms<50 && engine.dropouts()>0,"late worker: mode request/callbacks do not wait (%.2f ms); overload counted",ms);
+    watchdog.join();
+    for(int i=0;i<10;i++)pump(engine,x,y,64);
+    check(!engine.threaded() && engine.latencySamples()==0,"late worker: transition eventually completes inline");
+    // Loading/unloading or changing routing only after ownership is returned.
+    engine.beginBlock();engine.graph().setModel(0,nullptr);engine.graph().setParams(baseParams(Routing::Parallel2));
+    for(int i=0;i<40;i++) {engine.setThreaded(i%2);pump(engine,x,y,64);bool finite=true;for(float v:y)finite &= std::isfinite(v);check(finite,"toggle %d finite",i);}
+    engine.setThreaded(true);for(int i=0;i<12;i++)pump(engine,x,y,64);
+    check(engine.threaded() && engine.latencySamples()==64,"rapid toggles settle to last request");
+    engine.stop();
+}
+
 int main()
 {
     std::printf("SuprNAM graph checks\n");
@@ -730,6 +786,7 @@ int main()
     testThreadedMatchesInline();
     testThreadedParallelNull();
     testLatencyReporting();
+    testIrregularAndTransitions();
 
     std::printf("\n%s (%d failure%s)\n", failures == 0 ? "OK" : "FAILED", failures,
                 failures == 1 ? "" : "s");

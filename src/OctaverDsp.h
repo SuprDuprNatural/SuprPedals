@@ -437,8 +437,10 @@ public:
             directGain += (directTarget - directGain) * kGain;
             oct1Gain += (oct1Target - oct1Gain) * kGain;
 
-            const float sub = oct1Gain * v1 * trk.gateGain;
-            out[i]          = dcOut.process(directGain * x + sub);
+            // Keep DC protection on the generated voice; clean bass takes
+            // no analysis or nonlinear-path filters.
+            const float sub = oct1Gain * dcOut.process(v1 * trk.gateGain);
+            out[i] = directGain * in[i] + sub;
         }
     }
 

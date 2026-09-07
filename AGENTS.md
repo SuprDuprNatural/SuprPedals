@@ -22,7 +22,7 @@ custom faces and implemented OLED path.
 ## Build and test
 
 ```sh
-make            # all 12 Makefile bundles
+make            # all 17 Makefile bundles
 make test       # the offline suite - must be 0 failures
 make demo       # demo WAVs to build/demo/
 make tools      # build/fuzz_probe, the measurement rig
@@ -35,45 +35,48 @@ reconstruction, level laws).
 
 ## Deploying to the Pi
 
-The examples below use `user@pipedal-device.local` as the SSH target. Replace
-it and the source paths for the local environment. Key authentication and
-passwordless `sudo` are expected.
+Read `docs/RELEASE_STATUS.md` for the current deployed build, rollback and
+pending user audition. `docs/RELIABILITY.md` is the durable host/DSP contract;
+completed session handoffs have been consolidated there. Do not publish until
+Luke approves his final rig test. SuprPedals pushes to `origin`; the sibling
+PiPedal fork pushes to **`fork`**, never its upstream `origin`.
+
+The local development target is `lukepi4@pi4.local`. If `pi4` fails DNS, use
+mDNS. The saved `pi4.local` SSH key may be stale; the current device fingerprint
+matches the saved `pi4` entry. Use `ssh -o HostKeyAlias=pi4
+-o StrictHostKeyChecking=yes lukepi4@pi4.local`, never disable host checking.
+
+The Pi's `~/SuprPedals` is a plain source directory. Sync the complete current
+sources (exclude `.git`, `build`, `models`), then build there. The matching
+host build is `~/src/pipedal-codec-zero`; preserve its source/build before
+syncing the companion fork. Use RAM-safe jobs and inspect current build flags.
+Ordinary plugins use `make`; NAM needs its separate CMake build.
+
+`vite/restage-supr-ui.sh` builds and stages the **entire** dist, including
+chunks, CSS, fonts and static assets. It does not install or restart audio:
 
 ```sh
-# 1. source across (the Pi's ~/SuprPedals is a plain directory, not a clone)
-cd /path/to/SuprPedals
-rsync -az --delete --exclude '.git' --exclude 'build/' --exclude 'models/' \
-      ./ user@pipedal-device.local:~/SuprPedals/
-
-# 2. build natively on the Pi
-ssh user@pipedal-device.local 'cd ~/SuprPedals && make -j4'
-
-# 3. build + stage the UI from the dev machine
-PI=user@pipedal-device.local bash /path/to/pipedal/vite/restage-supr-ui.sh
-
-# 4. install both and restart
-ssh user@pipedal-device.local '~/supr-deploy.sh'
+PI=lukepi4@pi4.local \
+RSYNC_RSH='ssh -o HostKeyAlias=pi4 -o StrictHostKeyChecking=yes' \
+bash /path/to/pipedal/vite/restage-supr-ui.sh
 ```
 
-Then **hard-refresh the browser**. `supr-deploy.sh` runs `sudo make install`,
-copies the staged UI bundle into `/etc/pipedal/react`, and restarts
-`pipedald`. It does *not* build SuprNAM (too heavy for every UI deploy).
+Before any install/restart, back up installed bundles, host binary/service,
+configuration, complete UI and the **latest live pedalboard**. Saved presets do
+not include unsaved board edits. The websocket API provides `hello`,
+`currentPedalboard` and `updateCurrentPedalboard` (body `{clientId,pedalboard}`);
+read `PiPedalSocket.cpp`/`PiPedalModel.tsx` before using it. Store private JSON
+under ignored `build/`, restore it after restart and verify the original
+controls/paths exactly, allowing only documented new defaults. Never overwrite
+saved presets to obtain a backup or leave a temporary test board loaded.
 
-Verify rather than trust:
-
-```sh
-ssh user@pipedal-device.local \
-  'systemctl is-active pipedald; lv2ls | grep -c supr-pedals'
-```
-
-Expect `active` and `13`. Then check the deployed TTL actually contains the
-change you made — an install can succeed while shipping a stale file. Ignore
-`WebServer: ... Bad file descriptor` in the journal; that is the web server
-shutting down during the restart.
-
-**Restarting `pipedald` discards unsaved pedalboard changes** and reloads the
-saved one. If you changed a plugin's ports, its saved control values may come
-back at defaults — tell the user to check.
+Stage matching binaries/TTL/UI and use atomic replacement of running files.
+Do not use an uninspected old `~/supr-deploy.sh`: historical versions shipped
+only one JS file and installed stale plugins without rebuilding NAM/host.
+After restart, hard-refresh the browser. Verify service active, **18** unique
+Supr URIs, actual installed metadata and source-to-installed hashes. A count
+alone cannot detect a stale build. Ignore shutdown-only `Bad file descriptor`
+web-server messages; investigate continuing errors and sustained xrun deltas.
 
 ## Seeing the real UI without deploying
 
@@ -166,3 +169,9 @@ the pedalboard. Do not add another detector to either path.
 **Presentation belongs in the renderer.** The tuner's strobe runs at the base
 phase rate in the DSP; the 2× visual speed is applied in the view, so another
 renderer can choose differently. Keep that split.
+
+When restoring a raw live-board backup across appended ports, add only missing
+input controls from the deployed metadata defaults before calling
+`updateCurrentPedalboard`; that API does not run saved-preset `UpdateDefaults`.
+Verify every original value/path survives. Otherwise the face can throw
+“Missing control value” even though the audio host accepts the board.

@@ -1,6 +1,6 @@
 // ClackDsp.h — SuprClack: cleanup for the imperfect human form.
 //
-//   in ─► 2 ms delay ─► sieve ─► clack/squeak duck ─► × exp ─► out
+//   in ─► 2 ms delay ─► sieve ─► clack/squeak duck ─► × gate ─► out
 //              │        (residual)     (HF only)        gain
 //   in ──► envelopes ─► detectors ───────┘  └── TunerDsp period ─► comb
 //
@@ -28,9 +28,10 @@
 //    exactly; the squeak duck exists only where there is no held note to
 //    protect.
 //
-//  - FINGER NOISE IN THE GAPS: expander territory, keyed on the low band
-//    so noise cannot hold it open and a ghost-note thump cannot fail to
-//    open it.
+//  - FINGER NOISE IN THE GAPS: a real gate, keyed on the low band so
+//    noise cannot hold it open and a ghost-note thump cannot fail to open
+//    it. At full Range the settled closed state is exactly zero, not the
+//    small residue left by a finite-ratio expander.
 //
 // THE HARMONIC SIEVE. TunerDsp (the same McLeod detector SuprTuner
 // ships — reused, not reimplemented, so there is still only one pitch
@@ -126,7 +127,7 @@ class ClackDsp {
 public:
     // Lookahead: how far the detectors lead the audio path. 2 ms covers
     // the full rise of a fret click plus the gain smoothing, with margin
-    // for the expander to pre-open before a pluck.
+    // for the gate to pre-open before a pluck.
     static constexpr float kLookaheadMs = 2.0f;
 
     // -- clack section timing (see header) ----------------------------------
@@ -288,16 +289,24 @@ public:
     static constexpr float kSqRelMs        = 150.0f;
     static constexpr float kSqueakArmMs    = 120.0f;
 
-    // -- expander ------------------------------------------------------------
-    static constexpr float kKeyHz       = 800.0f; // fixed: it is the design
+    // -- bass gate -----------------------------------------------------------
+    // Four poles make the key genuinely bass-selective. The old two-pole
+    // 800 Hz key still saw enough of a loud 3 kHz click to open; four poles
+    // at 1 kHz keep every bass fundamental useful while rejecting that click
+    // by roughly 40 dB. The audio path itself remains full-range.
+    static constexpr float kKeyHz       = 1000.0f;
     static constexpr float kKeyHoldMs   = 20.0f;
     static constexpr float kKeyRelMs    = 10.0f;
-    static constexpr float kHystDb      = 5.0f;
-    static constexpr float kKneeDb      = 6.0f;
-    static constexpr float kExpSlope    = 1.5f;  // dB per dB below close
-    static constexpr float kExpAtkMs    = 1.0f;  // reopen speed
+    static constexpr float kHystDb      = 6.0f;
+    static constexpr float kGateHoldMs  = 25.0f;
+    static constexpr float kGateOpenMs  = 0.75f;
+    static constexpr float kRangeRampMs = 20.0f;
     static constexpr float kCrashSpeed  = 2.5f;  // mute closes up to 3.5x
     static constexpr float kThreshOffDb = -90.0f;
+    // Range means exactly what its dB readout says from 0..40. A separate
+    // endpoint at 41 is labelled infinity by the UI and selects a true zero
+    // floor. Never silently reinterpret a finite dB value as mute.
+    static constexpr float kHardGateValue = 40.5f;
 
     static constexpr float kDbFloor = -90.0f;
     static constexpr float kDeltaMs = 15.0f;  // Delta switch crossfade
@@ -325,8 +334,6 @@ public:
         histMask = histSize - 1;
 
         const float dt = float(kDecim) / fs;
-        dtDec = dt;
-
         eHi.set(fs, kHiHoldMs, kHiRelMs);
         eLo.set(fs, kLoHoldMs, kLoRelMs);
         eKey.set(fs, kKeyHoldMs, kKeyRelMs);
@@ -346,7 +353,6 @@ public:
         aSqArm   = 1.0f - std::exp(-dt / (kSqueakArmMs * 0.001f));
         aSqAtk   = 1.0f - std::exp(-dt / (kSqAtkMs * 0.001f));
         aSqRel   = 1.0f - std::exp(-dt / (kSqRelMs * 0.001f));
-        aExpAtk  = 1.0f - std::exp(-dt / (kExpAtkMs * 0.001f));
         aHold    = 1.0f - std::exp(-dt / (kHoldMs * 0.001f));
         aGain    = 1.0f - std::exp(-1.0f / (fs * kGainMs * 0.001f));
         aDelta   = 1.0f - std::exp(-1.0f / (fs * kDeltaMs * 0.001f));
@@ -356,6 +362,7 @@ public:
         aWeightDn = 1.0f - std::exp(-dt / (kSieveDropMs * 0.001f));
         kKeyLp   = 1.0f - std::exp(-2.0f * float(M_PI) * kKeyHz / fs);
         armTicks = int(kSieveArmMs * 0.001f / dt);
+        gateHoldTicks = int(kGateHoldMs * 0.001f / dt + 0.5f);
 
         tuner.init(sampleRate);
 
@@ -368,7 +375,8 @@ public:
     {
         std::fill(hist.begin(), hist.end(), 0.0f);
         pos = 0;
-        lowD1 = lowD2 = lowA1 = lowA2 = keyLp1 = keyLp2 = 0;
+        lowD1 = lowD2 = lowA1 = lowA2 = 0;
+        keyLp1 = keyLp2 = keyLp3 = keyLp4 = 0;
         resLpA = 0;
         eHi.reset();
         eLo.reset();
@@ -384,9 +392,10 @@ public:
         redDb     = 0;
         keyDbCur  = kDbFloor;
         resBaseLoDb = resBaseHiDb = kDbFloor;
-        duckHold  = scrHold = redHold = 0;
+        duckHold  = scrHold = 0;
         counter   = 0;
         sieveActW = 0;
+        sieveState_=learnState_=0;learnPressed_=false;learnTicks_=quietTicks_=0;
         period    = fs / 98.0f; // a harmless somewhere until the tracker speaks
         kResLp    = 1.0f
                  - std::exp(-2.0f * float(M_PI) * kResSplitHarm / period);
@@ -394,6 +403,12 @@ public:
         sqArm       = 0;
         armCount    = 0;
         settleCount = 0;
+        gateOpen     = false;
+        gateHold     = 0;
+        gatePhase    = 1.0f;
+        gateFloor    = closedFloor();
+        gateGain     = gateFloor;
+        gateCloseSpeed = 1.0f;
         gHi = gLo = gRlo = gRhi = 1.0f;
         gHiT = gLoT = gRloT = gRhiT = 1.0f;
         deltaMix = deltaTarget;
@@ -415,14 +430,13 @@ public:
         kFocusLp = 1.0f - std::exp(-2.0f * float(M_PI) * focusHz / fs);
     }
     void setThreshold(float db) { threshDb = clampf(db, kThreshOffDb, -20.0f); }
-    void setRange(float db) { rangeDb = clampf(db, 0.0f, 40.0f); }
+    void setRange(float db) { rangeDb = clampf(db, 0.0f, 41.0f); }
     void setRelease(float ms, bool force = false)
     {
         ms = clampf(ms, 30.0f, 800.0f);
         if (!force && std::fabs(ms - releaseMs) < 0.1f)
             return;
         releaseMs = ms;
-        aExpRel   = 1.0f - std::exp(-dtDec / (ms * 0.001f));
     }
     // DELTA: monitor what the pedal is taking out rather than what it is
     // passing. The removed signal is the delayed dry minus the processed
@@ -443,7 +457,9 @@ public:
     // -- display ------------------------------------------------------------
     float clackGrDb() const { return -duckHold; }  // <= 0, HF duck
     float scrapeGrDb() const { return -scrHold; }  // <= 0, sieve + squeak
-    float expGrDb() const { return -redHold; }     // <= 0, expansion
+    // Instantaneous gate reduction for the UI. Unlike the short-event meters
+    // this is not peak-held: it shows where the gate is now.
+    float gateGrDb() const { return -redDb; }
     float keyDb() const { return clampf(keyDbCur, -80.0f, 0.0f); }
     // Unheld values and tracker state, for the tests and the probe.
     float duckNowDb() const { return duckDb; }
@@ -459,6 +475,15 @@ public:
     // Engaged AND not vetoed — the state in which a duck can happen, and
     // therefore the population the allowances are calibrated over.
     float sieveActive() const { return sieveActW; }
+    int sieveState() const { return sieveState_; }
+    // Learn recommends a gate threshold only; it never changes the harmonic
+    // sieve baseline or applies a gate setting behind the user's controls.
+    void setLearn(bool pressed) {
+        if(pressed && !learnPressed_) {learnState_=1;learnTicks_=quietTicks_=0;learnPeak_=-90;learnInvalid_=false;}
+        learnPressed_=pressed;
+    }
+    int learnState() const {return learnState_;} // 0 idle, 1 learning, 2 ready, 3 rejected
+    float learnedThreshold() const {return learnedThreshold_;}
     float trackedHz() const { return tuner.frequency(); }
     // Each residual band against the harmonic estimate — what the two
     // allowances are calibrated against on real playing.
@@ -468,18 +493,31 @@ public:
     // -- audio --------------------------------------------------------------
     void process(const float* in, float* out, uint32_t n)
     {
+        if (n==0) return;
         if (snapGains) {
             updateDetector();
             duckDb  = duckT;
             scrLoDb = scrLoT;
             scrHiDb = scrHiT;
             sqDb    = sqT;
-            redDb   = redT;
             updateGainTargets();
             gHi  = gHiT;
             gLo  = gLoT;
             gRlo = gRloT;
             gRhi = gRhiT;
+            const bool gateEnabled = threshDb > kThreshOffDb + 0.5f
+                                     && rangeDb > 0.0f;
+            if (!gateEnabled) {
+                gatePhase = 0.0f;
+                gateFloor = 1.0f;
+                gateGain  = 1.0f;
+                redDb     = 0.0f;
+            } else {
+                gatePhase = gateOpen ? 0.0f : 1.0f;
+                gateFloor = closedFloor();
+                gateGain  = gateOpen ? 1.0f : gateFloor;
+                redDb     = gateOpen ? 0.0f : rangeDb;
+            }
             // Delta adopts its setting on the first block too: the
             // crossfade exists to make the SWITCH inaudible, not to make
             // the pedal glide into whatever it was already set to.
@@ -487,7 +525,9 @@ public:
             snapGains = false;
         }
         for (uint32_t i = 0; i < n; ++i) {
-            const float x = in[i];
+            const bool finite=std::isfinite(in[i]);
+            const float x = finite?in[i]:0;
+            if(!finite && learnState_==1)learnInvalid_=true;
 
             // One history serves the lookahead and both comb taps.
             hist[size_t(pos)] = x;
@@ -506,7 +546,9 @@ public:
             eLo.push(std::fabs(lowD2));
             keyLp1 += (x - keyLp1) * kKeyLp;
             keyLp2 += (keyLp1 - keyLp2) * kKeyLp;
-            eKey.push(std::fabs(keyLp2));
+            keyLp3 += (keyLp2 - keyLp3) * kKeyLp;
+            keyLp4 += (keyLp3 - keyLp4) * kKeyLp;
+            eKey.push(std::fabs(keyLp4));
 
             // The sieve, on the audio side. Scrape events are tens of
             // milliseconds, so the residual detector does not need the
@@ -545,30 +587,48 @@ public:
                 settleToZero(scrLoDb, scrLoT, 1e-3f);
                 settleToZero(scrHiDb, scrHiT, 1e-3f);
                 settleToZero(sqDb, sqT, 1e-3f);
-                // Reopening is fast (the lookahead has pre-announced the
-                // note); closing runs at the release knob, sped up by how
-                // hard the level crashed below the close threshold.
-                if (redT > redDb) {
-                    const float crash =
-                        clampf((closeDb - keyDbCur - 12.0f) / 12.0f,
-                               0.0f, 1.0f);
-                    redDb += (redT - redDb)
-                             * std::min(aExpRel * (1.0f + kCrashSpeed * crash),
-                                        1.0f);
-                } else {
-                    redDb += (redT - redDb) * aExpAtk;
-                }
                 updateGainTargets();
             }
 
+            // A state gate needs a bounded transition, not an asymptotic dB
+            // law. Phase reaches both endpoints in finite time; the
+            // smoothstep has zero slope there, so full Range can land on an
+            // exact digital zero without a discontinuity. The 2 ms audio
+            // lookahead is longer than the 0.75 ms opening ramp.
+            const bool gateEnabled = threshDb > kThreshOffDb + 0.5f
+                                     && rangeDb > 0.0f;
+            if (!gateEnabled || gateOpen) {
+                gatePhase = std::max(0.0f,
+                    gatePhase - 1.0f / (fs * kGateOpenMs * 0.001f));
+            } else {
+                gatePhase = std::min(1.0f,
+                    gatePhase + gateCloseSpeed / (fs * releaseMs * 0.001f));
+            }
+            const float floorTarget = gateEnabled ? closedFloor() : 1.0f;
+            const float floorStep = 1.0f / (fs * kRangeRampMs * 0.001f);
+            if (gateFloor < floorTarget)
+                gateFloor = std::min(gateFloor + floorStep, floorTarget);
+            else if (gateFloor > floorTarget)
+                gateFloor = std::max(gateFloor - floorStep, floorTarget);
+            const float s = gatePhase * gatePhase * (3.0f - 2.0f * gatePhase);
+            gateGain = 1.0f - (1.0f - gateFloor) * s;
+            if (gatePhase == 1.0f && gateFloor == 0.0f)
+                gateGain = 0.0f;
+            redDb = gateGain > 1e-7f
+                        ? std::min(-8.6858896f * std::log(gateGain), rangeDb)
+                        : rangeDb;
+
+            const float oldLo=gRlo, oldHi=gRhi;
             gRlo += (gRloT - gRlo) * aGainR;
             gRhi += (gRhiT - gRhi) * aGainR;
+            // At 96k float rounding stalls 0.5 ms smoothing before the old
+            // 1e-6 threshold. Detect that final unrepresentable increment too.
             // Same last step as the detector's: land exactly on unity so
             // the correction terms become exact zeros and the comb is
             // genuinely out of the path (see inertNow).
-            if (gRloT == 1.0f && std::fabs(gRlo - 1.0f) < 1e-6f)
+            if (gRloT == 1.0f && (std::fabs(gRlo - 1.0f) < 1e-6f || gRlo==oldLo))
                 gRlo = 1.0f;
-            if (gRhiT == 1.0f && std::fabs(gRhi - 1.0f) < 1e-6f)
+            if (gRhiT == 1.0f && (std::fabs(gRhi - 1.0f) < 1e-6f || gRhi==oldHi))
                 gRhi = 1.0f;
             gHi += (gHiT - gHi) * aGain;
             gLo += (gLoT - gLo) * aGain;
@@ -578,11 +638,12 @@ public:
             const float xp =
                 xd + (gRlo - 1.0f) * rLo + (gRhi - 1.0f) * rHi;
 
-            // Then the Focus split's duck and the expander, same
-            // collapse: equal gains make the second term an exact zero.
+            // Then the Focus split's duck, followed by the gate. Equal
+            // split gains make the second term an exact zero.
             lowA1 += (xp - lowA1) * kFocusLp;
             lowA2 += (lowA1 - lowA2) * kFocusLp;
-            const float wet = gHi * xp + (gLo - gHi) * lowA2;
+            const float shaped = gHi * xp + (gLo - gHi) * lowA2;
+            const float wet = shaped * gateGain;
 
             // Delta monitors the difference — what was taken out. The
             // output trim is applied after the choice so it works as a
@@ -702,6 +763,17 @@ private:
         const float loDb = dbOf(eLo.env);
         keyDbCur = dbOf(eKey.env);
 
+        if(learnState_==1) {
+            ++learnTicks_;
+            if(tuner.hasPitch() || tuner.attackHold() || keyDbCur>-50) learnInvalid_=true;
+            else {++quietTicks_;learnPeak_=std::max(learnPeak_,keyDbCur);}
+            if(learnTicks_ >= int(2*fs/kDecim)) {
+                if(!learnInvalid_ && quietTicks_>=int(fs/kDecim) && learnPeak_>-79) {
+                    learnedThreshold_=clampf(learnPeak_+6,-80,-44);learnState_=2;
+                } else learnState_=3;
+            }
+        }
+
         // -- clack: min of the two excesses (see header) --------------------
         refDb += (hiDb - refDb) * (hiDb > refDb ? aRefUp : aRefDn);
         const float tExc = hiDb - refDb - kTransMarginDb;
@@ -800,6 +872,8 @@ private:
         const bool settled = settleCount >= settleTicksNeeded();
         const float sieveAct = (combWrong || !settled) ? 0.0f : sieveW;
         sieveActW = sieveAct;
+        sieveState_ = scrapeAmt==0 ? 0 : !tuner.hasPitch() ? 1 : tuner.attackHold() ? 2
+            : !fresh ? 3 : !conf || armCount<armTicks ? 7 : !settled ? 4 : combWrong ? 5 : 6;
 
         // -- sieve: each band against its own learned baseline ---------------
         // Below ~2.5 f0 the comb is near exact and the residual is
@@ -827,23 +901,32 @@ private:
         sqT = clampf(sqExc, 0.0f, kMaxSqueakDb) * scrapeAmt
               * (1.0f - sieveW) * sqArm;
 
-        // -- expander -------------------------------------------------------
+        // -- bass gate ------------------------------------------------------
         closeDb = threshDb - kHystDb;
-        if (threshDb > kThreshOffDb + 0.5f) {
-            const float under = closeDb - keyDbCur;
-            float raw;
-            if (2.0f * under <= -kKneeDb) {
-                raw = 0.0f;
-            } else if (2.0f * under >= kKneeDb) {
-                raw = under * kExpSlope;
-            } else {
-                const float t = under + kKneeDb * 0.5f;
-                raw = kExpSlope * t * t / (2.0f * kKneeDb);
-            }
-            redT = std::min(raw, rangeDb);
+        const bool enabled = threshDb > kThreshOffDb + 0.5f && rangeDb > 0.0f;
+        if (!enabled) {
+            gateOpen = true;
+            gateHold = gateHoldTicks;
         } else {
-            redT = 0.0f;
+            if (keyDbCur >= threshDb) {
+                gateOpen = true;
+                gateHold = gateHoldTicks;
+            } else if (gateOpen) {
+                // Refresh below the open threshold but above the close
+                // threshold. This is true hysteresis: a steady tail cannot
+                // chatter just because its ripple brushes the knob value.
+                if (keyDbCur >= closeDb) {
+                    gateHold = gateHoldTicks;
+                } else if (gateHold > 0) {
+                    --gateHold;
+                } else {
+                    gateOpen = false;
+                }
+            }
         }
+        const float crash = clampf((closeDb - keyDbCur - 12.0f) / 12.0f,
+                                   0.0f, 1.0f);
+        gateCloseSpeed = 1.0f + kCrashSpeed * crash;
 
         // display holds: jump to any larger excursion, else relax
         if (duckDb > duckHold)
@@ -855,18 +938,21 @@ private:
             scrHold = scr;
         else
             scrHold += (scr - scrHold) * aHold;
-        if (redDb > redHold)
-            redHold = redDb;
-        else
-            redHold += (redDb - redHold) * aHold;
     }
 
     void updateGainTargets()
     {
         gRloT = std::exp(-0.11512925f * scrLoDb); // ln 10 / 20
         gRhiT = std::exp(-0.11512925f * scrHiDb);
-        gHiT = std::exp(-0.11512925f * (redDb + duckDb + sqDb));
-        gLoT = std::exp(-0.11512925f * redDb);
+        gHiT = std::exp(-0.11512925f * (duckDb + sqDb));
+        gLoT = 1.0f;
+    }
+
+    inline float closedFloor() const
+    {
+        if (rangeDb >= kHardGateValue)
+            return 0.0f;
+        return std::exp(-0.11512925f * rangeDb);
     }
 
     float fs = 48000.0f;
@@ -879,7 +965,7 @@ private:
 
     // splits and key filter
     float lowD1 = 0, lowD2 = 0, lowA1 = 0, lowA2 = 0;
-    float keyLp1 = 0, keyLp2 = 0, resLpA = 0;
+    float keyLp1 = 0, keyLp2 = 0, keyLp3 = 0, keyLp4 = 0, resLpA = 0;
     float kFocusLp = 0, kKeyLp = 0, kResLp = 0;
 
     // envelopes and tracker
@@ -892,24 +978,29 @@ private:
     float aDuckAtk = 0, aDuckRel = 0;
     float aScrAtk = 0, aScrRel = 0, aScrBail = 0, aBaseUp = 0, aBaseDn = 0;
     float aSqAtk = 0, aSqRel = 0, aSqArm = 0;
-    float aExpAtk = 0, aExpRel = 0;
-    float aHold = 0, aGain = 0, aGainR = 0, dtDec = 0;
+    int sieveState_=0,learnState_=0,learnTicks_=0,quietTicks_=0;
+    bool learnPressed_=false,learnInvalid_=false;
+    float learnPeak_=-90,learnedThreshold_=-90;
+    float aHold = 0, aGain = 0, aGainR = 0;
     float aPeriod = 0, aWeightUp = 0, aWeightDn = 0;
-    int armTicks = 0;
+    int armTicks = 0, gateHoldTicks = 0;
 
     // detector state
-    float duckT = 0, scrLoT = 0, scrHiT = 0, sqT = 0, redT = 0;
+    float duckT = 0, scrLoT = 0, scrHiT = 0, sqT = 0;
     float duckDb = 0, scrLoDb = 0, scrHiDb = 0, sqDb = 0, redDb = 0;
     float keyDbCur = kDbFloor, closeDb = -95.0f;
     float resBaseLoDb = kDbFloor, resBaseHiDb = kDbFloor;
-    float duckHold = 0, scrHold = 0, redHold = 0;
+    float duckHold = 0, scrHold = 0;
     float period = 500.0f, sieveW = 0, sieveActW = 0, sqArm = 0;
-    int armCount = 0, settleCount = 0, counter = 0;
+    int armCount = 0, settleCount = 0, counter = 0, gateHold = 0;
+    bool gateOpen = false;
 
     // parameters
     float clackAmt = 0.5f, scrapeAmt = 0.5f, allowDb = kAllowCalDb;
     float focusHz = 700.0f;
-    float threshDb = -55.0f, rangeDb = 15.0f, releaseMs = 150.0f;
+    float threshDb = -55.0f, rangeDb = 41.0f, releaseMs = 65.0f;
+    float gatePhase = 1.0f, gateFloor = 0.0f, gateGain = 1.0f;
+    float gateCloseSpeed = 1.0f;
 
     // applied gain
     float gHiT = 1.0f, gLoT = 1.0f, gRloT = 1.0f, gRhiT = 1.0f;

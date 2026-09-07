@@ -386,7 +386,7 @@ static RenderedTr renderTr(const std::vector<float>& in, float fs,
 
 struct ClackParams {
     float clack = 50, scrape = 50, sense = 0, focus = 700;
-    float thresh = -55, range = 15, release = 150;
+    float thresh = -55, range = 41, release = 65;
     bool delta = false;
 };
 
@@ -396,7 +396,8 @@ struct RenderedClack {
     std::vector<float> scrapeDb; // sieve + squeak duck, per sample
     std::vector<float> sieveDb;  // sieve alone (both residual bands)
     std::vector<float> squeakDb; // transition-squeak duck alone
-    std::vector<float> redDb;    // expander reduction, per sample
+    std::vector<float> redDb;    // gate reduction, per sample
+    std::vector<float> gateState; // instantaneous 0 open..1 closed
     std::vector<float> sieveW;   // sieve engagement weight, per sample
     std::vector<float> resLo;    // low residual vs harmonic estimate, dB
     std::vector<float> resHi;    // high residual vs harmonic estimate, dB
@@ -429,6 +430,7 @@ static RenderedClack renderClack(const std::vector<float>& in, float fs,
         r.sieveDb.resize(in.size());
         r.squeakDb.resize(in.size());
         r.redDb.resize(in.size());
+        r.gateState.resize(in.size());
         r.sieveW.resize(in.size());
         r.resLo.resize(in.size());
         r.resHi.resize(in.size());
@@ -439,6 +441,7 @@ static RenderedClack renderClack(const std::vector<float>& in, float fs,
             r.sieveDb[i]  = std::max(dsp.sieveLoDb(), dsp.sieveHiDb());
             r.squeakDb[i] = dsp.squeakNowDb();
             r.redDb[i]    = dsp.redNowDb();
+            r.gateState[i] = -dsp.gateGrDb() / 41.0f;
             r.sieveW[i]   = dsp.sieveActive();
             r.resLo[i]    = dsp.resLoRelDb();
             r.resHi[i]    = dsp.resHiRelDb();
@@ -2491,9 +2494,9 @@ static void testClack(float fs)
               dLo, dHi);
     }
 
-    // 7. The expander key is the low band: a ghost-note thump opens it, a
-    // click at the same level cannot, and the clack duck buries what
-    // leaks. This is the discrimination the whole pedal is built around.
+    // 7. The gate key is the low band: a ghost-note thump opens it, while
+    // a click at the same level cannot open it even with the independent
+    // Clack section off. This is the discrimination the gate is built on.
     {
         const size_t n = size_t(0.5f * fs);
         std::vector<float> thump(n, 0.0f);
@@ -2508,10 +2511,10 @@ static void testClack(float fs)
         addClick(click, fs, 0.25f, 3000.0f, 0.12f);
 
         ClackParams p;
-        p.clack  = 100;
+        p.clack  = 0;
         p.scrape = 0;
         p.thresh = -45;
-        p.range  = 25;
+        p.range  = 41;
         RenderedClack rT = renderClack(thump, fs, p);
         RenderedClack rK = renderClack(click, fs, p);
 
@@ -2523,12 +2526,12 @@ static void testClack(float fs)
         const double clickLoss =
             20.0 * std::log10(peakAbs(click, t0 - 20, t0 + size_t(0.01f * fs))
                               / std::max(peakAbs(rK.out, a, b), 1e-9f));
-        check(thumpLoss < 2.5 && clickLoss > 18.0,
+        check(thumpLoss < 2.5 && clickLoss > 60.0,
               "clack: ghost thump loses %.1f dB, same-level click %.1f dB",
               thumpLoss, clickLoss);
     }
 
-    // 8. The expander gates the floor and follows the tail: hiss after the
+    // 8. Finite Range gates the floor and follows the tail: hiss after the
     // note drops by Range, the decaying tail is untouched on its way down.
     {
         std::vector<float> in = pluck(fs, 98.0f, 1.2f, 0.35f, 0.8f);
@@ -2554,6 +2557,63 @@ static void testClack(float fs)
         check(hissRed > 12.0 && hissRed < 18.0 && std::fabs(tailLoss) < 0.7,
               "clack: hiss floor -%.1f dB, decay tail %+.2f dB",
               hissRed, tailLoss);
+    }
+
+    // Range must be honest: 40 means precisely 40 dB, while the separate
+    // infinity endpoint is a hard gate. Infinity must preserve a bass onset
+    // and then reach exact digital zero once the bass is gone. Exactness
+    // matters before heavy distortion: a tiny residual is enough for a
+    // high-gain stage to turn back into hiss.
+    {
+        const size_t n = size_t(1.4f * fs);
+        std::vector<float> in(n, 0.0f);
+        const size_t on = size_t(0.2f * fs);
+        const std::vector<float> note = steadyNote(fs, 41.2f, 0.55f, 0.22f);
+        std::copy(note.begin(), note.end(), in.begin() + on);
+        uint32_t seed = 17;
+        for (float& v : in) { // always-present -72 dBFS rig floor
+            seed = seed * 1664525u + 1013904223u;
+            v += 0.00025f * (float(seed >> 8) / 8388608.0f - 1.0f);
+        }
+
+        ClackParams hard;
+        hard.clack   = 0;
+        hard.scrape  = 0;
+        hard.thresh  = -50;
+        hard.range   = 41;
+        hard.release = 120;
+        ClackParams off = hard;
+        off.thresh = -90;
+        RenderedClack rH = renderClack(in, fs, hard);
+        ClackParams finite = hard;
+        finite.range = 40;
+        RenderedClack r40 = renderClack(in, fs, finite);
+        RenderedClack rO = renderClack(in, fs, off);
+
+        const size_t a0 = on + size_t(D);
+        const size_t a1 = a0 + size_t(0.06f * fs);
+        const double onsetLoss =
+            20.0 * std::log10(rms(rO.out, a0, a1)
+                              / std::max(rms(rH.out, a0, a1), 1e-12));
+        bool exactZero = true;
+        bool finiteNonzero = false;
+        const size_t z0 = size_t(1.15f * fs);
+        for (size_t i = z0; i < n; ++i) {
+            exactZero = exactZero && rH.out[i] == 0.0f;
+            finiteNonzero = finiteNonzero || r40.out[i] != 0.0f;
+        }
+        const double finiteReduction =
+            20.0 * std::log10(rms(in, z0 - size_t(D), n - size_t(D))
+                              / std::max(rms(r40.out, z0, n), 1e-12));
+        const bool stateExact = rH.gateState[z0] > 0.999999f
+                                && std::fabs(rH.gateState[
+                                    on + size_t(0.25f * fs)]) < 1e-6f;
+        check(onsetLoss < 0.5 && exactZero && finiteNonzero
+                  && std::fabs(finiteReduction - 40.0) < 0.1 && stateExact,
+              "clack: onset %.2f dB, Range 40 = %.2f dB, infinity zero, "
+              "state %.3f closed / %.3f open",
+              onsetLoss, finiteReduction, rH.gateState[z0],
+              rH.gateState[on + size_t(0.25f * fs)]);
     }
 
     // 9. A hand mute closes fast, a decay closes at the release knob: the
@@ -3123,29 +3183,19 @@ static void testBand(float fs)
         check(worst < 1e-5, "solos re-sum to the whole: worst %.2e", worst);
     }
 
-    // 4. The dry path is a delay line, not a filter — so Blend cannot comb no
-    //    matter what the wet side is doing.
+    // 4. Blend=0 is the unprocessed crossover reference. It has the same
+    // allpass phase and halfband response as neutral wet, even with drive set.
     {
-        const std::vector<float> in = pluck(fs, 41.2f, 1.0f, 0.6f);
+        const auto in = pluck(fs, 41.2f, 1.0f, 0.1f);
         BandParams p;
-        p.blend    = 0.0f;
-        p.drive[0] = p.drive[1] = p.drive[2] = 9.0f; // must not reach the output
-        const std::vector<float> out = renderBand(in, fs, p);
-
-        supr::DcBlocker dc;
-        dc.set(fs, 5.0f);
-        dc.reset();
-        std::vector<float> want(in.size());
-        for (size_t i = 0; i < in.size(); ++i)
-            want[i] = dc.process(in[i] + 1e-12f);
-
-        const int L  = supr::BandDsp::kLatency;
+        const auto want = renderBand(in, fs, p);
+        p.blend = 0;
+        p.drive[0] = p.drive[1] = p.drive[2] = 9;
+        const auto out = renderBand(in, fs, p);
         double worst = 0;
-        for (size_t i = 0; i + size_t(L) < out.size(); ++i)
-            worst = std::max(worst, double(std::fabs(out[i + L] - want[i])));
-        check(worst < 1e-6,
-              "blend 0 is the input delayed by exactly %d samples: worst %.2e",
-              L, worst);
+        for (size_t i = 0; i < out.size(); ++i)
+            worst = std::max(worst, double(std::fabs(out[i] - want[i])));
+        check(worst < 1e-6, "blend 0 matches neutral crossover reference: %.2e", worst);
     }
 
     // 5. THE COMPRESSOR COMPRESSES THE ENVELOPE, NOT THE WAVEFORM. A low band
@@ -3949,7 +3999,7 @@ int main(int argc, char** argv)
         // SuprClack preview: --wavclack in.wav out.wav
         //   [clack scrape sense focus thresh range release level]
         // Reports what it found: click and scrape activity, sieve
-        // engagement, expander time, and the residual-vs-harmonic
+        // engagement, gate time, and the residual-vs-harmonic
         // distribution kResAllowDb is calibrated against.
         float fs = 0;
         std::vector<float> in = loadWav(argv[2], fs);
@@ -4000,7 +4050,7 @@ int main(int argc, char** argv)
         const double N = double(r.duckDb.size());
         std::printf("%d click ducks >3 dB (max %.1f dB) | sieve active "
                     "%.1f%% of file (max %.1f dB), engaged %.1f%% | squeak "
-                    "%.1f%% (max %.1f dB) | expander closed %.1f%% | "
+                    "%.1f%% (max %.1f dB) | gate closed %.1f%% | "
                     "any noise duck %.1f%% (max %.1f) | latency %d\n",
                     events, maxDuck,
                     100.0 * double(sieveActive) / N, maxSieve,

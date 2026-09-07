@@ -45,6 +45,8 @@ public:
         sc1.reset();
         sc2.reset();
         grSmooth  = 0;
+        heldPeak = 0; holdLeft = 0;
+        detectorMix = detectorTarget;
         snapGains = true;
     }
 
@@ -82,6 +84,7 @@ public:
         sc2.setHighpass(fs, scHz, 1.3066f);
     }
     void setMakeup(float db) { makeupTarget = clampf(db, 0.0f, 24.0f); }
+    void setDetector(int mode) { detectorTarget = mode == 1 ? 1.0f : 0.0f; }
     void setBlend(float b) { blendTarget = clampf(b, 0.0f, 1.0f); }
 
     // -- audio ---------------------------------------------------------------
@@ -93,13 +96,25 @@ public:
             snapGains = false;
         }
         for (uint32_t i = 0; i < n; ++i) {
-            const float x = dcIn.process(in[i] + 1e-12f);
+            const float x = in[i];
+            const float detector = dcIn.process(x + 1e-12f);
 
             // sidechain level in dB (HPF bypassed at the knob's floor)
             const float sc =
-                (scHz <= 21.0f) ? x : sc2.process(sc1.process(x));
+                (scHz <= 21.0f) ? detector : sc2.process(sc1.process(detector));
+            const float peak = std::fabs(sc);
+            // A 40 ms held peak spans a half-cycle down to 12.5 Hz. Tiny
+            // tolerance lets repeated periodic peaks renew the hold despite
+            // floating point phase drift. Silence cannot renew it.
+            if (peak > 1e-7f && peak >= heldPeak * 0.9999f) {
+                heldPeak = std::max(peak, heldPeak);
+                holdLeft = uint32_t(fs * 0.040f);
+            } else if (holdLeft) --holdLeft;
+            else heldPeak += (peak - heldPeak) * aRel;
+            detectorMix += (detectorTarget-detectorMix)*kGain;
+            const float detected = peak + detectorMix*(heldPeak-peak);
             const float lvlDb =
-                8.6858896f * std::log(std::fabs(sc) + 1e-7f); // 20/ln(10)
+                8.6858896f * std::log(detected + 1e-7f); // 20/ln(10)
 
             // soft-knee gain computer -> instantaneous reduction (>= 0 dB)
             const float over = lvlDb - thresholdDb;
@@ -140,6 +155,8 @@ private:
     float aAtk = 0.01f, aRel = 0.001f;
     float scHz = 80.0f;
     float grSmooth = 0;
+    float heldPeak = 0, detectorMix = 0, detectorTarget = 0;
+    uint32_t holdLeft = 0;
 
     float makeupTarget = 0.0f, blendTarget = 1.0f;
     float makeupDb = 0.0f, blend = 1.0f;

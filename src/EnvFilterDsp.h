@@ -149,7 +149,8 @@ public:
 
             blend += (blendTarget - blend) * kGain;
             level += (levelTarget - level) * kGain;
-            out[i] = dcOut.process(level * (blend * wet + (1.0f - blend) * x));
+            wet = dcOut.process(wet); // nonlinear resonance path only
+            out[i] = level * (blend * wet + (1.0f - blend) * in[i]);
         }
     }
 

@@ -1,0 +1,11 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+<https://suprduprnatural.github.io/supr-pedals/echo> a lv2:Plugin ; lv2:binary <suprecho.so> ; rdfs:seeAlso <suprecho.ttl> .
+<https://suprduprnatural.github.io/supr-pedals/echo#thickener> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/echo> ; rdfs:seeAlso <echo-presets.ttl> .
+<https://suprduprnatural.github.io/supr-pedals/echo#dotted> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/echo> ; rdfs:seeAlso <echo-presets.ttl> .
+<https://suprduprnatural.github.io/supr-pedals/echo#dub> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/echo> ; rdfs:seeAlso <echo-presets.ttl> .
