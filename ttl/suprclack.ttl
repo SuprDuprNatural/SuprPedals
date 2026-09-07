@@ -194,27 +194,4 @@ ck:monitorGroup
         lv2:portProperty pprops:notOnGUI ;
         units:unit units:db ;
         rdfs:comment "Key (low band) level. Published for renderers; where the Thresh knob is aimed." ;
-    ] , [
-        a lv2:ControlPort , lv2:InputPort ; lv2:index 15 ;
-        lv2:symbol "learn" ; lv2:name "Learn Idle" ;
-        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ;
-        lv2:portProperty lv2:integer , lv2:toggled , pprops:trigger ;
-        rdfs:comment "Mute the strings, then learn for two seconds. Recommends a gate threshold; never trains sustained harmonics as noise or applies the result automatically." ;
-    ] , [
-        a lv2:ControlPort , lv2:OutputPort ; lv2:index 16 ;
-        lv2:symbol "learned" ; lv2:name "Suggested Threshold" ;
-        lv2:default -90 ; lv2:minimum -90 ; lv2:maximum -44 ;
-        units:unit units:db ; lv2:portProperty pprops:notOnGUI ;
-    ] , [
-        a lv2:ControlPort , lv2:OutputPort ; lv2:index 17 ;
-        lv2:symbol "learn_state" ; lv2:name "Learn State" ;
-        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 3 ;
-        lv2:portProperty lv2:integer , pprops:notOnGUI ;
-        rdfs:comment "0 idle, 1 learning, 2 recommendation ready, 3 rejected (note, loud input or insufficient noise)." ;
-    ] , [
-        a lv2:ControlPort , lv2:OutputPort ; lv2:index 18 ;
-        lv2:symbol "sieve_state" ; lv2:name "Sieve State" ;
-        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 7 ;
-        lv2:portProperty lv2:integer , pprops:notOnGUI ;
-        rdfs:comment "0 off, 1 no pitch, 2 attack, 3 stale pitch, 4 settling taps, 5 residual veto, 6 active, 7 arming." ;
     ] .

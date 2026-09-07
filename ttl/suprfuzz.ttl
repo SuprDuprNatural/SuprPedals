@@ -116,33 +116,4 @@ fuzz:outputGroup
         lv2:portProperty pprops:notOnGUI , lv2:reportsLatency , lv2:integer ;
         units:unit units:frame ;
         rdfs:comment "Halfband oversampler round trip — 15 samples, about 0.3 ms at 48 kHz." ;
-    ] , [
-        a lv2:ControlPort , lv2:InputPort ; lv2:index 9 ;
-        lv2:symbol "match_mode" ; lv2:name "Level Match" ;
-        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ;
-        lv2:portProperty lv2:integer , lv2:enumeration ;
-        lv2:scalePoint [ rdfs:label "Continuous" ; rdf:value 0 ] , [ rdfs:label "Held" ; rdf:value 1 ] ;
-        rdfs:comment "Continuous preserves the original normalization. Held uses the saved Match Gain and never follows playing dynamics." ;
-    ] , [
-        a lv2:ControlPort , lv2:InputPort ; lv2:index 10 ;
-        lv2:symbol "held_gain" ; lv2:name "Match Gain" ;
-        lv2:default 0 ; lv2:minimum -18 ; lv2:maximum 18 ; units:unit units:db ;
-        rdfs:comment "Held output normalization, saved with presets. Reset to 0 dB for unity normalization. It is an RMS energy match, not universal perceived loudness." ;
-    ] , [
-        a lv2:ControlPort , lv2:InputPort ; lv2:index 11 ;
-        lv2:symbol "learn" ; lv2:name "Learn Match" ;
-        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ;
-        lv2:portProperty lv2:integer , lv2:toggled , pprops:trigger ;
-        rdfs:comment "Play a representative phrase for two seconds. At least 250 ms of active signal is required. Apply the suggested gain and select Held to keep it." ;
-    ] , [
-        a lv2:ControlPort , lv2:OutputPort ; lv2:index 12 ;
-        lv2:symbol "learned_gain" ; lv2:name "Suggested Match Gain" ;
-        lv2:default 0 ; lv2:minimum -18 ; lv2:maximum 18 ; units:unit units:db ;
-        lv2:portProperty pprops:notOnGUI ;
-    ] , [
-        a lv2:ControlPort , lv2:OutputPort ; lv2:index 13 ;
-        lv2:symbol "learn_state" ; lv2:name "Learn State" ;
-        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 3 ;
-        lv2:portProperty lv2:integer , pprops:notOnGUI ;
-        rdfs:comment "0 idle, 1 learning, 2 ready, 3 rejected. Recommendations are transient; Match Gain and Level Match persist as ordinary controls." ;
     ] .

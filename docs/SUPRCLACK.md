@@ -189,22 +189,6 @@ one section at a time. Clack and Scrape show peak-held reduction. Gate shows
 instantaneous state: empty when open and full only when closed, without peak
 hold or display animation.
 
-## Future work
-
-The lower-risk improvements are an output port that explains the sieve state,
-a short clean-playing **Learn** pass for Sense, and pitch-region-specific
-inharmonicity baselines. Sharing one pitch analysis across plugins would save
-CPU but needs a host-supported scalar bus.
-
-Polyphonic combs or an STFT residual could handle chords, but both increase the
-cost and the damage caused by a bad detection. Test either offline against the
-current corpus before adding it to the live path.
-
-If a learned version is attempted, train the guard and gain decision rather
-than a waveform-to-waveform denoiser. The existing features already describe
-the problem. Sample-aligned raw/clean pairs can provide target band gains, and
-their difference can be reused as a noise-event library for augmentation.
-
 ## Tests and tools
 
 ```sh

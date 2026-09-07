@@ -42,7 +42,7 @@ ifeq ($(strip $(LV2_CFLAGS)),)
 LV2_CFLAGS := -Iinclude
 endif
 
-all: build/suprshape.so build/suprphase.so build/suprecho.so build/suprspace.so build/suproctave.so build/suproctaveplus.so build/suprenvfilter.so build/suprcompressor.so build/suprvu.so build/suprtuner.so build/suprsans.so build/suprchorus.so build/suprband.so build/suprfuzz.so build/suprtransient.so build/suprclack.so build/suprforge.so
+all: build/suprphase.so build/suprecho.so build/suprspace.so build/suproctave.so build/suproctaveplus.so build/suprenvfilter.so build/suprcompressor.so build/suprvu.so build/suprtuner.so build/suprsans.so build/suprchorus.so build/suprband.so build/suprfuzz.so build/suprtransient.so build/suprclack.so build/suprforge.so
 
 build/suprforge.so: Makefile src/SuprForge.cpp src/ForgeDsp.h src/SansDsp.h src/OctaverDsp.h
 	@mkdir -p build
@@ -117,8 +117,7 @@ build/fuzz_probe: tools/fuzz_probe.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPl
 
 tools: build/fuzz_probe
 
-test: build/test_shape build/test_phase build/test_octaver build/test_tuner build/test_forge build/test_echo build/test_space
-	./build/test_shape
+test: build/test_phase build/test_octaver build/test_tuner build/test_forge build/test_echo build/test_space
 	./build/test_phase
 	python3 test/validate_tone_motion.py
 	./build/test_octaver
@@ -135,9 +134,6 @@ demo: build/test_octaver
 	@echo "Demo WAVs written to build/demo/"
 
 install: all
-	install -d $(DESTDIR)$(LV2_DIR)/suprshape.lv2
-	install -m 644 build/suprshape.so ttl/suprshape.ttl ttl/shape-presets.ttl $(DESTDIR)$(LV2_DIR)/suprshape.lv2/
-	install -m 644 ttl/shape-manifest.ttl $(DESTDIR)$(LV2_DIR)/suprshape.lv2/manifest.ttl
 	install -d $(DESTDIR)$(LV2_DIR)/suprphase.lv2
 	install -m 644 build/suprphase.so ttl/suprphase.ttl ttl/phase-presets.ttl $(DESTDIR)$(LV2_DIR)/suprphase.lv2/
 	install -m 644 ttl/phase-manifest.ttl $(DESTDIR)$(LV2_DIR)/suprphase.lv2/manifest.ttl
@@ -187,7 +183,7 @@ install: all
 	install -m 644 ttl/forge-manifest.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE13)/manifest.ttl
 
 uninstall:
-	rm -rf $(DESTDIR)$(LV2_DIR)/suprshape.lv2 $(DESTDIR)$(LV2_DIR)/suprphase.lv2
+	rm -rf $(DESTDIR)$(LV2_DIR)/suprphase.lv2
 	rm -rf $(DESTDIR)$(LV2_DIR)/$(BUNDLE14) $(DESTDIR)$(LV2_DIR)/$(BUNDLE15)
 	rm -rf $(DESTDIR)$(LV2_DIR)/$(BUNDLE13)
 	rm -rf $(DESTDIR)$(LV2_DIR)/$(BUNDLE1) $(DESTDIR)$(LV2_DIR)/$(BUNDLE2) $(DESTDIR)$(LV2_DIR)/$(BUNDLE3) $(DESTDIR)$(LV2_DIR)/$(BUNDLE4) $(DESTDIR)$(LV2_DIR)/$(BUNDLE5) $(DESTDIR)$(LV2_DIR)/$(BUNDLE6) $(DESTDIR)$(LV2_DIR)/$(BUNDLE7) $(DESTDIR)$(LV2_DIR)/$(BUNDLE8) $(DESTDIR)$(LV2_DIR)/$(BUNDLE9) $(DESTDIR)$(LV2_DIR)/$(BUNDLE10) $(DESTDIR)$(LV2_DIR)/$(BUNDLE11) $(DESTDIR)$(LV2_DIR)/$(BUNDLE12)
@@ -260,13 +256,9 @@ build/test_space: Makefile test/test_space.cpp src/SuprSpace.cpp src/SpaceDsp.h 
 # Tone/motion: finite checks and reproducible sample-wise state.
 TONE_MOTION_CXXFLAGS = $(filter-out -ffast-math,$(CXXFLAGS)) -ffp-contract=off
 
-build/suprshape.so: Makefile src/SuprShape.cpp src/ShapeDsp.h src/SansDsp.h src/OctaverDsp.h
-	@mkdir -p build
-	$(CXX) $(TONE_MOTION_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprShape.cpp
 
-build/test_shape: test/test_shape.cpp Makefile src/SuprShape.cpp src/ShapeDsp.h src/SansDsp.h src/OctaverDsp.h
-	@mkdir -p build
-	$(CXX) $(TONE_MOTION_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_shape.cpp src/SuprShape.cpp
+
+
 
 build/suprphase.so: Makefile src/SuprPhase.cpp src/PhaseDsp.h src/SansDsp.h src/OctaverDsp.h
 	@mkdir -p build
@@ -290,17 +282,12 @@ build/test_clean: Makefile test/test_clean.cpp test/test_octaver.cpp src/SuprCom
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_clean.cpp src/SuprCompressor.cpp
 
-test-signal-integrity: build/test_clean build/test_clack build/test_fuzz_match
+test-signal-integrity: build/test_clean build/test_clack
 	./build/test_band
 	./build/test_clean
 	./build/test_clack
-	./build/test_fuzz_match
 	python3 test/validate_signal_integrity.py
 
 build/test_clack: Makefile test/test_clack.cpp test/test_octaver.cpp src/SuprClack.cpp $(wildcard src/*.h)
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_clack.cpp src/SuprClack.cpp
-
-build/test_fuzz_match: Makefile test/test_fuzz_match.cpp test/test_octaver.cpp src/SuprFuzz.cpp $(wildcard src/*.h)
-	@mkdir -p build
-	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_fuzz_match.cpp src/SuprFuzz.cpp

@@ -1,15 +1,14 @@
 # Collection status
 
-The collection contains eighteen plugins, including Forge, Echo, Space, Shape
-and Phase. Band blend alignment, clean bass paths, Compressor Held Peak,
-Clack sieve/Learn, Fuzz held matching, NAM asynchronous transitions and host
-latency compensation are implemented. Their contracts are documented in
-[RELIABILITY.md](RELIABILITY.md).
+Seventeen plugins are retained. Forge, Echo, Space and Phase are included;
+Band blend alignment, clean bass paths, Clack gate/sieve repairs, NAM
+asynchronous transitions and host latency compensation are preserved.
 
-Deployment evidence and remaining acceptance are maintained in
-[RELEASE_STATUS.md](RELEASE_STATUS.md). Complete Luke's rig testing before
-publishing the integrated release to GitHub.
+Luke rejected Shape, Compressor Held Peak, Clack Learn/sieve status text and
+Fuzz Learn/Held matching after audition. They are removed, not deferred.
+Do not reintroduce them without a new request. Compressor's large-meter face
+and original controls are restored. OctavePlus expansion remains excluded.
 
-OctavePlus expansion (pulse width/filter sequencer) is deferred and was
-explicitly excluded from this collection update. Do not treat the old proposal
-as authorization to implement it. Preserve the existing Sans and Fuzz voices.
+See [RELIABILITY.md](RELIABILITY.md) for contracts and
+[RELEASE_STATUS.md](RELEASE_STATUS.md) for deployment and acceptance.
+GitHub publication still awaits Luke's approval.

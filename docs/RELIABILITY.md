@@ -6,11 +6,11 @@ acceptance, and [SUPRDESIGN.md](SUPRDESIGN.md) for renderer conventions.
 
 ## Saved controls and sonic changes
 
-Existing port indices/symbols are preserved. New ports are appended:
-
-- Compressor index 10: `detector` (0 Peak, the legacy default; 1 Held Peak).
-- Clack 15–18: `learn`, `learned`, `learn_state`, `sieve_state`.
-- Fuzz 9–13: `match_mode`, `held_gain`, `learn`, `learned_gain`, `learn_state`.
+Compressor, Clack and Fuzz retain their original 10, 15 and 9 ports.
+The audition-only appended detector, Learn, match and sieve-state ports have
+been removed. Existing original controls keep their indices and symbols.
+Compressor uses its original peak detector and large-meter face. Fuzz keeps
+its original internal automatic normalization, with no new matching controls.
 
 Clack's gate replaces the old finite expander. Range 0–40 retains its dB
 meaning; the separate 41 endpoint selects digital mute. New-instance defaults
@@ -23,25 +23,7 @@ arbitrary filter phase.
 Octave direct, Envelope dry blend and Compressor's main signal avoid cascaded
 unconditional DC blockers. Protection remains in detectors and nonlinear paths.
 The neutral Octave → Envelope → Compressor dry chain is exact at tested low-B
-frequencies. Shape's optional HPF provides deliberate rumble removal; Sans's
-intentional voicing is unchanged.
-
-## Detector and Learn behaviour
-
-Compressor Held Peak uses a 40 ms hold and smoothed release without lookahead.
-It reduces bass-waveform gain modulation; the legacy Peak mode remains the
-default. At matched steady reduction, synthetic 31 Hz tests give Held Peak
-under 0.3% THD versus roughly 6.7% for the fast-release Peak stress case.
-This does not substitute for transient/playing judgement.
-
-Clack Learn listens for two seconds of quiet, unpitched input and recommends
-a gate threshold. Pitched notes, attacks, loud input, invalid samples and
-unmeasurable silence reject the result. It never learns sustained harmonics
-into the sieve baseline. Fuzz Learn measures active dry/wet power for two
-seconds, excludes silence, rejects invalid input and bounds its recommendation
-to ±18 dB. Apply writes normal saved controls; Held mode retains the gain
-through changes in playing dynamics. It is power matching, not universal
-perceived-loudness matching. Trigger ports are not persistent Learn state.
+frequencies. Sans's intentional voicing is unchanged.
 
 ## NAM worker contract
 
@@ -87,7 +69,7 @@ and duck meters; existing LV2 Hold/output ports remain compatible.
 `make test` includes all ordinary effects and exact appended enum/TTL contracts.
 RDF checks need `rdflib`; use `lv2['index']`, because Namespace.index resolves
 to the Python string method and silently traverses no ports. Forge, Fuzz,
-Clack, Transient, Echo, Space, Shape and Phase use strict floating-point builds where
+Clack, Transient, Echo, Space and Phase use strict floating-point builds where
 finite checks or exact block equivalence require them.
 
 `make nam-test` runs synthetic graph, actual LV2 host/state and optional

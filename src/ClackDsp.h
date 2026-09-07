@@ -395,7 +395,6 @@ public:
         duckHold  = scrHold = 0;
         counter   = 0;
         sieveActW = 0;
-        sieveState_=learnState_=0;learnPressed_=false;learnTicks_=quietTicks_=0;
         period    = fs / 98.0f; // a harmless somewhere until the tracker speaks
         kResLp    = 1.0f
                  - std::exp(-2.0f * float(M_PI) * kResSplitHarm / period);
@@ -475,15 +474,6 @@ public:
     // Engaged AND not vetoed — the state in which a duck can happen, and
     // therefore the population the allowances are calibrated over.
     float sieveActive() const { return sieveActW; }
-    int sieveState() const { return sieveState_; }
-    // Learn recommends a gate threshold only; it never changes the harmonic
-    // sieve baseline or applies a gate setting behind the user's controls.
-    void setLearn(bool pressed) {
-        if(pressed && !learnPressed_) {learnState_=1;learnTicks_=quietTicks_=0;learnPeak_=-90;learnInvalid_=false;}
-        learnPressed_=pressed;
-    }
-    int learnState() const {return learnState_;} // 0 idle, 1 learning, 2 ready, 3 rejected
-    float learnedThreshold() const {return learnedThreshold_;}
     float trackedHz() const { return tuner.frequency(); }
     // Each residual band against the harmonic estimate — what the two
     // allowances are calibrated against on real playing.
@@ -527,7 +517,6 @@ public:
         for (uint32_t i = 0; i < n; ++i) {
             const bool finite=std::isfinite(in[i]);
             const float x = finite?in[i]:0;
-            if(!finite && learnState_==1)learnInvalid_=true;
 
             // One history serves the lookahead and both comb taps.
             hist[size_t(pos)] = x;
@@ -763,17 +752,6 @@ private:
         const float loDb = dbOf(eLo.env);
         keyDbCur = dbOf(eKey.env);
 
-        if(learnState_==1) {
-            ++learnTicks_;
-            if(tuner.hasPitch() || tuner.attackHold() || keyDbCur>-50) learnInvalid_=true;
-            else {++quietTicks_;learnPeak_=std::max(learnPeak_,keyDbCur);}
-            if(learnTicks_ >= int(2*fs/kDecim)) {
-                if(!learnInvalid_ && quietTicks_>=int(fs/kDecim) && learnPeak_>-79) {
-                    learnedThreshold_=clampf(learnPeak_+6,-80,-44);learnState_=2;
-                } else learnState_=3;
-            }
-        }
-
         // -- clack: min of the two excesses (see header) --------------------
         refDb += (hiDb - refDb) * (hiDb > refDb ? aRefUp : aRefDn);
         const float tExc = hiDb - refDb - kTransMarginDb;
@@ -872,8 +850,6 @@ private:
         const bool settled = settleCount >= settleTicksNeeded();
         const float sieveAct = (combWrong || !settled) ? 0.0f : sieveW;
         sieveActW = sieveAct;
-        sieveState_ = scrapeAmt==0 ? 0 : !tuner.hasPitch() ? 1 : tuner.attackHold() ? 2
-            : !fresh ? 3 : !conf || armCount<armTicks ? 7 : !settled ? 4 : combWrong ? 5 : 6;
 
         // -- sieve: each band against its own learned baseline ---------------
         // Below ~2.5 f0 the comb is near exact and the residual is
@@ -978,9 +954,6 @@ private:
     float aDuckAtk = 0, aDuckRel = 0;
     float aScrAtk = 0, aScrRel = 0, aScrBail = 0, aBaseUp = 0, aBaseDn = 0;
     float aSqAtk = 0, aSqRel = 0, aSqArm = 0;
-    int sieveState_=0,learnState_=0,learnTicks_=0,quietTicks_=0;
-    bool learnPressed_=false,learnInvalid_=false;
-    float learnPeak_=-90,learnedThreshold_=-90;
     float aHold = 0, aGain = 0, aGainR = 0;
     float aPeriod = 0, aWeightUp = 0, aWeightDn = 0;
     int armTicks = 0, gateHoldTicks = 0;

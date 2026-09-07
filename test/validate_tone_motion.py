@@ -1,4 +1,4 @@
-"""Validate the two new contracts, all preset values, and RDF when available."""
+"""Validate the Phase contract, all preset values, and RDF when available."""
 from pathlib import Path
 import re
 root=Path(__file__).resolve().parents[1]
@@ -6,14 +6,14 @@ try:
  import rdflib
 except ImportError:
  rdflib=None
-contracts={'shape':'in out hpf lpf bass treble mid_freq mid_gain mid_q level boom boom_freq harsh harsh_freq threshold release boom_gr harsh_gr', 'phase':'in out rate depth centre feedback mix protect mode sensitivity'}
+contracts={'phase':'in out rate depth centre feedback mix protect mode sensitivity'}
 for effect,names in contracts.items():
  symbols=names.split();ttl=(root/f'ttl/supr{effect}.ttl').read_text();cpp=(root/f'src/Supr{effect.title()}.cpp').read_text()
  expected=list(enumerate(symbols))
  assert [(int(i),s) for i,s in re.findall(r'lv2:index\s+(\d+)\s*;\s*lv2:symbol\s+"([^"]+)"',ttl)]==expected
  assert [(int(i),s.lower()) for s,i in re.findall(r'PORT_(\w+)\s*=\s*(\d+)',cpp)]==expected
  limits={s:(float(lo),float(hi)) for s,lo,hi in re.findall(r'lv2:symbol "([^"]+)"[^\]]*?lv2:minimum ([-\d.]+) ; lv2:maximum ([-\d.]+)',ttl)}
- controls=symbols[2:-2] if effect=='shape' else symbols[2:]
+ controls=symbols[2:]
  presets=(root/f'ttl/{effect}-presets.ttl').read_text()
  for block in presets.split('a pset:Preset')[1:]:
   values=re.findall(r'lv2:symbol "([^"]+)" ; pset:value ([-\d.]+)',block)

@@ -7,12 +7,12 @@ CONTRACTS = {
     'Band': (
         'IN OUT SPLIT1 SPLIT2 LO_DRIVE LO_COMP LO_LEVEL MD_DRIVE MD_COMP MD_LEVEL HI_DRIVE HI_COMP HI_LEVEL BLEND LEVEL GR_LO GR_MD GR_HI LATENCY DRV_LO DRV_MD DRV_HI',
         'in out split1 split2 lowDrive lowComp lowLevel midDrive midComp midLevel highDrive highComp highLevel blend level grLow grMid grHigh latency drvLow drvMid drvHigh'),
-    'Compressor': ('IN OUT THRESHOLD RATIO ATTACK RELEASE SCHPF MAKEUP BLEND GR DETECTOR',
-                   'in out threshold ratio attack release schpf makeup blend gr detector'),
-    'Clack': ('IN OUT CLACK SCRAPE SENSE FOCUS THRESH RANGE RELEASE LATENCY CLACKGR SCRGR EXPGR ENV DELTA LEARN LEARNED LEARN_STATE SIEVE_STATE',
-              'in out clack scrape sense focus thresh range release latency clackgr scrapegr expgr env delta learn learned learn_state sieve_state'),
-    'Fuzz': ('IN OUT SUSTAIN TONE GATE BLEND LEVEL NOTE LATENCY MATCH_MODE HELD_GAIN LEARN LEARNED_GAIN LEARN_STATE',
-             'in out sustain tone gate blend level note latency match_mode held_gain learn learned_gain learn_state'),
+    'Compressor': ('IN OUT THRESHOLD RATIO ATTACK RELEASE SCHPF MAKEUP BLEND GR',
+                   'in out threshold ratio attack release schpf makeup blend gr'),
+    'Clack': ('IN OUT CLACK SCRAPE SENSE FOCUS THRESH RANGE RELEASE LATENCY CLACKGR SCRGR EXPGR ENV DELTA',
+              'in out clack scrape sense focus thresh range release latency clackgr scrapegr expgr env delta'),
+    'Fuzz': ('IN OUT SUSTAIN TONE GATE BLEND LEVEL NOTE LATENCY',
+             'in out sustain tone gate blend level note latency'),
 }
 try:
     import rdflib

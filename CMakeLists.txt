@@ -1,6 +1,6 @@
 # SuprNAM — the one Supr pedal that needs a real build system.
 #
-# The other seventeen plugins are dependency-free header DSP and stay in the
+# The other sixteen plugins are dependency-free header DSP and stay in the
 # Makefile. This one links NeuralAudio (and through it NAM Core, RTNeural,
 # Eigen and math_approx), all of which are CMake projects, so it gets its own.
 #

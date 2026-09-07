@@ -133,13 +133,4 @@ comp:outputGroup
         lv2:portProperty pprops:notOnGUI ;
         units:unit units:db ;
         rdfs:comment "Current gain reduction (shown on the meter)." ;
-    ] , [
-        a lv2:ControlPort , lv2:InputPort ;
-        lv2:index 10 ; lv2:symbol "detector" ; lv2:name "Detector" ;
-        pg:group comp:compressionGroup ;
-        lv2:default 0 ; lv2:minimum 0 ; lv2:maximum 1 ;
-        lv2:portProperty lv2:integer , lv2:enumeration ;
-        lv2:scalePoint [ rdfs:label "Peak" ; rdf:value 0 ] ,
-                       [ rdfs:label "Held Peak" ; rdf:value 1 ] ;
-        rdfs:comment "Peak preserves the original grip. Held Peak holds peaks for 40 ms before release for cleaner low-bass leveling, with no audio lookahead or delay." ;
     ] .

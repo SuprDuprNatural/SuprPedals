@@ -8,7 +8,7 @@ Run `make test` before and after changing a DSP path.
 
 ### Keep the audio callback bounded
 
-The seventeen regular pedals use fixed storage and allocate nothing while
+The sixteen regular pedals use fixed storage and allocate nothing while
 processing. Their DSP is header-only so the same implementation runs in the
 LV2 plugin and the offline harness. SuprNAM loads models outside the audio
 thread and uses pre-created real-time workers when Threaded mode is enabled.
@@ -88,8 +88,7 @@ This is a feed-forward compressor with a soft-knee gain computer and
 attack/release smoothing in the dB domain. The knee widens at low ratios and
 tightens towards limiting ratios. A fourth-order sidechain high-pass stops low
 fundamentals from controlling the whole signal. Makeup and parallel blend are
-smoothed, and gain reduction is published as a meter port. Optional Held Peak
-adds a 40 ms detector hold without lookahead; Peak remains the default. The
+smoothed, and gain reduction is published as a meter port. The
 main audio path is unfiltered while DC protection remains in the detector.
 
 ### SuprTransient
@@ -173,10 +172,6 @@ playing level. The shipped output matcher compares long-term wet and delayed
 dry power over 2.5 seconds, updates only while the gate is open, and warms up
 quickly after engagement. It holds the level match within about 0.6 dB from
 full input down to −24 dB without removing the fuzz's within-note sustain.
-
-Optional Learn measures two seconds of active signal and recommends a bounded
-gain. Apply saves it and selects Held mode, avoiding continuous level tracking.
-See [RELIABILITY.md](RELIABILITY.md) for rejection and persistence rules.
 
 The gate stays open while pitch is still tracked, and the clean blend uses the
 same fixed 15-sample delay as the wet path. Known residuals are 2–3 dB less

@@ -23,7 +23,6 @@ enum PortIndex : uint32_t {
     PORT_SCHPF     = 6,
     PORT_MAKEUP    = 7,
     PORT_BLEND     = 8,
-    PORT_DETECTOR  = 10, // appended; existing ports keep their indices
     PORT_GR        = 9, // output: gain reduction in dB (<= 0)
 };
 
@@ -40,7 +39,6 @@ struct SuprCompressor {
     const float* blend     = nullptr;
     const float* schpf     = nullptr;
     float*       gr        = nullptr;
-    const float* detector  = nullptr;
 };
 
 LV2_Handle instantiate(const LV2_Descriptor*, double rate, const char*,
@@ -66,7 +64,6 @@ void connect_port(LV2_Handle instance, uint32_t port, void* data)
     case PORT_MAKEUP:    self->makeup    = static_cast<const float*>(data); break;
     case PORT_BLEND:     self->blend     = static_cast<const float*>(data); break;
     case PORT_SCHPF:     self->schpf     = static_cast<const float*>(data); break;
-    case PORT_DETECTOR: self->detector = static_cast<const float*>(data); break;
     case PORT_GR:        self->gr        = static_cast<float*>(data); break;
     }
 }
@@ -96,8 +93,6 @@ void run(LV2_Handle instance, uint32_t nSamples)
         self->dsp.setBlend(*self->blend);
     if (self->schpf)
         self->dsp.setScHpf(*self->schpf);
-
-    self->dsp.setDetector(self->detector && *self->detector >= 0.5f ? 1 : 0);
 
     self->dsp.process(self->in, self->out, nSamples);
 
