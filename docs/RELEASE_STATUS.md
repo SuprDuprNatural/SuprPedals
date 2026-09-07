@@ -47,7 +47,8 @@ and local ignored `build/release/`. Original integration backups remain at
 Restore the affected bundles/UI from the revision archive with the service
 stopped if rollback is needed; do not overwrite newer preset data blindly.
 
-GitHub remains unchanged until Luke approves publication after audition.
+Luke approved committing and pushing both repositories on 8 September 2026
+after these requested removals. He also asked to stop further stability checks.
 See [RELIABILITY.md](RELIABILITY.md) and [ROADMAP.md](ROADMAP.md) for continuity.
 
 Companion UI commit: `92c26dbb0edf75b0229686b3fb059a3767e0af91`. The plugin commit containing this report is its matching revision.

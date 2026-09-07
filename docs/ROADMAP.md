@@ -11,4 +11,4 @@ and original controls are restored. OctavePlus expansion remains excluded.
 
 See [RELIABILITY.md](RELIABILITY.md) for contracts and
 [RELEASE_STATUS.md](RELEASE_STATUS.md) for deployment and acceptance.
-GitHub publication still awaits Luke's approval.
+Luke approved GitHub publication of this revised scope on 8 September 2026.
