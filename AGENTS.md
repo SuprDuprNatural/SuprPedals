@@ -35,16 +35,12 @@ reconstruction, level laws).
 
 ## Deploying to the Pi
 
-Read `docs/RELEASE_STATUS.md` for the current deployed build, rollback and
-pending user audition. `docs/RELIABILITY.md` is the durable host/DSP contract;
-completed session handoffs have been consolidated there. Do not publish until
-Luke approves his final rig test. SuprPedals pushes to `origin`; the sibling
-PiPedal fork pushes to **`fork`**, never its upstream `origin`.
+Run the applicable local build and tests before publishing. SuprPedals pushes to `origin`;
+the sibling PiPedal fork pushes to **`fork`**, never its upstream `origin`.
 
-The local development target is `lukepi4@pi4.local`. If `pi4` fails DNS, use
-mDNS. The saved `pi4.local` SSH key may be stale; the current device fingerprint
-matches the saved `pi4` entry. Use `ssh -o HostKeyAlias=pi4
--o StrictHostKeyChecking=yes lukepi4@pi4.local`, never disable host checking.
+Set the deployment target explicitly for each session, for example
+`PI=user@pipedal-device.local`. Keep strict host-key checking enabled and
+resolve any changed key out of band; never bypass host verification.
 
 The Pi's `~/SuprPedals` is a plain source directory. Sync the complete current
 sources (exclude `.git`, `build`, `models`), then build there. The matching
@@ -56,8 +52,8 @@ Ordinary plugins use `make`; NAM needs its separate CMake build.
 chunks, CSS, fonts and static assets. It does not install or restart audio:
 
 ```sh
-PI=lukepi4@pi4.local \
-RSYNC_RSH='ssh -o HostKeyAlias=pi4 -o StrictHostKeyChecking=yes' \
+PI=user@pipedal-device.local \
+RSYNC_RSH='ssh -o StrictHostKeyChecking=yes' \
 bash /path/to/pipedal/vite/restage-supr-ui.sh
 ```
 

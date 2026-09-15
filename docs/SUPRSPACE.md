@@ -22,7 +22,7 @@ lets the tail decay. Host bypass cannot promise audible trails.
 
 These presets use one network: the plate setting is a darker, longer diffuse
 ambience, not a physical plate simulation or a separate algorithm. Measured
-recorded-bass renders do not clip; listening approval remains outstanding.
+recorded-bass renders do not clip.
 
 ## Network, timing and stability
 

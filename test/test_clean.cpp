@@ -14,7 +14,8 @@ int main(){
   }
   auto d=lv2_descriptor(0);auto h=d->instantiate(d,fs,"",nullptr);float p[10]={};
   p[2]=-32;p[3]=6;p[4]=9;p[5]=75;p[6]=90;p[7]=3;p[8]=.7;
-  for(int i=2;i<10;i++)d->connect_port(h,i,&p[i]);d->activate(h);
+  for(int i=2;i<10;i++) d->connect_port(h,i,&p[i]);
+  d->activate(h);
   auto x=pluck(fs,31,1,.3f),y=x;std::vector<float>want(x.size());
   supr::CompressorDsp ref;ref.init(fs);ref.setThreshold(p[2]);ref.setRatio(p[3]);ref.setAttack(p[4]);ref.setRelease(p[5]);ref.setScHpf(p[6]);ref.setMakeup(p[7]);ref.setBlend(p[8]);
   ref.process(x.data(),want.data(),x.size());

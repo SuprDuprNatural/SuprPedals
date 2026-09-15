@@ -37,8 +37,9 @@ Use Comp sparingly at first; Weight is its manual makeup control.
 The custom PiPedal face groups Foundation, Forge and Output. Its meters read
 low compression, gate attenuation and output peak directly from DSP ports.
 Output turns red at 0 dBFS. The face uses segmented reduction/output meters,
-a gate-state inlay beneath Gate, and the shared 3 dB detented Level control. The controls retain normal keyboard, touch and
-hardware-encoder support through the shared Supr components.
+a gate-state inlay beneath Gate, and the shared 1 dB detented Level control.
+The controls retain normal keyboard, touch and hardware-encoder support
+through the shared Supr components.
 
 ## Signal path
 
@@ -98,8 +99,8 @@ alias-free. A 31 Hz tone alongside driven 997 Hz mids changes by less than
 blocks. Run on the Pi to judge its cost; a desktop figure does not establish
 hardware deadline margin.
 
-The reference set includes the user's Alpha Omega Ultra neutral/Bite gain-7
-NAM captures. They provide comparisons of level-dependent harmonic behavior;
+The reference set includes Alpha Omega Ultra neutral/Bite gain-7 NAM captures.
+They provide comparisons of level-dependent harmonic behavior;
 they do not establish that Forge matches the original device at every
 setting. Models remain external and are not bundled.
 
@@ -120,6 +121,3 @@ The corrected Pi 4 native build uses **8.79% of one core** in that benchmark
 point contraction: GCC's fast-math build failed exact block-partition and
 wrapper/in-place equivalence tests. The strict build passes those tests at all
 three sample rates. This flag choice is part of its tested build contract.
-
-See [release status](RELEASE_STATUS.md) for the current integrated deployment,
-verification evidence and remaining rig acceptance.

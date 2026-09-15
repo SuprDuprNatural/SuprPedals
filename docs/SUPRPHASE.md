@@ -67,5 +67,3 @@ The face groups Motion, Voice and Envelope using the existing shared controls.
 Tests cover analytical complex response, notch positions, sample-rate scaling,
 LFO extrema, envelope calibration, automation, tail stability, real LV2
 control mapping, in-place buffers, block partitions and lifecycle behaviour.
-See [release status](RELEASE_STATUS.md) for current native CPU, UI and rig
-acceptance evidence.

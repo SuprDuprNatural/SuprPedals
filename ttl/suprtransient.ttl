@@ -102,7 +102,7 @@ tr:outputGroup
         lv2:default 0.0 ;
         lv2:minimum -12.0 ;
         lv2:maximum 12.0 ;
-        pprops:rangeSteps 9 ;
+        pprops:rangeSteps 25 ;
         units:unit units:db ;
         rdfs:comment "Output trim." ;
     ] , [

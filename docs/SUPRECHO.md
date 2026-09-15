@@ -44,8 +44,9 @@ During changes two echo timings coexist briefly. There is no pitch-motion mode.
 
 ## Factory presets
 
-Values are final shipped starting points; recorded-DI renders are measured,
-but musical tuning still needs Luke's listening approval.
+Values are shipped starting points. Recorded-DI renders are measured, while
+musical tuning should still be confirmed with a listening test on the target
+rig.
 
 | Preset | Time ms | Feedback | Mix | Duck | Tone Hz | Low cut Hz | Recovery ms | Division |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |

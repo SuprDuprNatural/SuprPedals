@@ -9,7 +9,7 @@
 //   fuzz_probe response  [ampdb] [sustain] [tone]
 //   fuzz_probe compress  [sustain] [f0]
 //   fuzz_probe stats     <in.wav> [sustain] [blend]
-//   fuzz_probe wav       <in.wav> <out.wav> [sustain] [tone] [octave] [blend]
+//   fuzz_probe wav       <in.wav> <out.wav> [sustain] [tone] [blend]
 //
 // MIT license, (c) 2026 SuprPedals contributors.
 
@@ -176,12 +176,11 @@ double db(double v) { return 20.0 * std::log10(std::max(v, 1e-12)); }
 
 struct Rig {
     supr::FuzzDsp dsp;
-    void setup(float sustain, float tone, float octave, float blend)
+    void setup(float sustain, float tone, float blend)
     {
         dsp.init(kFs);
         dsp.setSustain(sustain);
         dsp.setTone(tone);
-        dsp.setOctave(octave);
         dsp.setBlend(blend);
         dsp.setGate(-90.0f); // measurement: never gate
         dsp.setLevel(0.0f);
@@ -219,7 +218,7 @@ void cmdHarmonics(float sustain, double f0)
                 sustain, f0);
     std::printf("# inDb   outRms   gain    H2     H3     H4     H5     H6     H7     H8     H9    THD%%\n");
     for (double inDb = -42.0; inDb <= 0.01; inDb += 6.0) {
-        Rig r; r.setup(sustain, 5.0f, 0.0f, 1.0f);
+        Rig r; r.setup(sustain, 5.0f, 1.0f);
         const double amp = std::pow(10.0, inDb / 20.0);
         double f;
         std::vector<float> y = toneWindow(r, f0, amp, n, f);
@@ -246,7 +245,7 @@ void cmdResponse(double ampDb, float sustain, float tone)
         315,400,500,630,800,1000,1250,1600,2000,2500,3150,4000,5000,6300,8000,
         10000,12500,16000};
     for (double want : freqs) {
-        Rig r; r.setup(sustain, tone, 0.0f, 1.0f);
+        Rig r; r.setup(sustain, tone, 1.0f);
         double f;
         std::vector<float> y = toneWindow(r, want, amp, n, f);
         const double c1 = f * double(n) / kFs;
@@ -263,7 +262,7 @@ void cmdCompress(float sustain, double f0)
     std::printf("# SuprFuzz output vs input, Sustain %.1f at %.1f Hz\n", sustain, f0);
     std::printf("# inDb    outRmsDb  outPeakDb  gainDb   crestDb\n");
     for (double inDb = -48.0; inDb <= 0.01; inDb += 3.0) {
-        Rig r; r.setup(sustain, 5.0f, 0.0f, 1.0f);
+        Rig r; r.setup(sustain, 5.0f, 1.0f);
         const double amp = std::pow(10.0, inDb/20.0);
         double f;
         std::vector<float> y = toneWindow(r, f0, amp, n, f);
@@ -279,7 +278,7 @@ void cmdStats(const std::string& path, float sustain, float blend)
     std::vector<float> in = readWav(path, fsIn);
     if (in.empty()) return;
     if (fsIn != kFs) in = resample(in, fsIn, kFs);
-    Rig r; r.setup(sustain, 5.0f, 0.0f, blend);
+    Rig r; r.setup(sustain, 5.0f, blend);
     std::vector<float> out = r.run(in);
 
     auto bandRms = [&](const std::vector<float>& x, double lo, double hi) {
@@ -315,13 +314,13 @@ void cmdStats(const std::string& path, float sustain, float blend)
 }
 
 void cmdWav(const std::string& inPath, const std::string& outPath, float sustain,
-            float tone, float octave, float blend)
+            float tone, float blend)
 {
     int fsIn = 0;
     std::vector<float> in = readWav(inPath, fsIn);
     if (in.empty()) return;
     if (fsIn != kFs) in = resample(in, fsIn, kFs);
-    Rig r; r.setup(sustain, tone, octave, blend);
+    Rig r; r.setup(sustain, tone, blend);
     r.dsp.setGate(-70.0f);
     std::vector<float> out = r.run(in);
     writeWavF32(outPath, out, kFs);
@@ -339,7 +338,7 @@ int main(int argc, char** argv)
             "usage: fuzz_probe <command> [args]\n"
             "  harmonics [sustain] [f0] | response [ampdb] [sustain] [tone] |\n"
             "  compress [sustain] [f0] | stats <in.wav> [sustain] [blend] |\n"
-            "  wav <in> <out> [sustain] [tone] [octave] [blend]\n");
+            "  wav <in> <out> [sustain] [tone] [blend]\n");
         return 2;
     }
     const std::string cmd = argv[1];
@@ -355,7 +354,7 @@ int main(int argc, char** argv)
         cmdStats(argv[2], float(arg(3, 5.0)), float(arg(4, 1.0)));
     else if (cmd == "wav" && argc >= 4)
         cmdWav(argv[2], argv[3], float(arg(4, 5.0)), float(arg(5, 5.0)),
-               float(arg(6, 0.0)), float(arg(7, 1.0)));
+               float(arg(6, 1.0)));
     else {
         std::fprintf(stderr, "unknown or incomplete command: %s\n", cmd.c_str());
         return 2;

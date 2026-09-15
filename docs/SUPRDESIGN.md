@@ -222,14 +222,53 @@ The ANO wheel navigates four layers: Parameters, Effects, Presets and Settings.
 Navigation and parameter activity temporarily replace the passive screen. When
 the overlay timeout expires, the selected passive screen returns. This
 overlay-first rule preserves immediate hardware feedback without losing the
-chosen idle mode.
+chosen idle mode. The two-second preset notice takes priority over these
+overlays while it is visible.
+
+### Preset artwork and boot screen
+
+Successful preset and bank loads publish a mutex-protected snapshot of the
+bank ID, preset ID, name and optional artwork. The worker composites a
+two-second notice only in y=24..63, preserving the live tuner strobe and needle
+above it. The notice has priority for its full two seconds, including during
+hardware activity. Only the latest pending parameter/navigation overlay is
+retained, and its timeout starts when the notice expires. A newer load replaces
+the notice and clears feedback pending from the old preset. Blank stays blank.
+ANO Select clears preset browsing and returns to Parameters after loading.
+Direct mapping refreshes during loads still apply current input values, but
+never show a parameter/bypass overlay; only non-initial input events do that.
+
+Display settings add `presetNameOnLoad` (default true), `presetArtwork` and
+`swipeReveal` (both default false). The name and artwork switches are
+independent. Artwork is 128×40 at y=24..63 and replaces the name. Without
+artwork, up to two centred 5×7 text lines use the lower strip. Unsupported
+Unicode becomes one `?` per code point, and long names are ellipsized. The
+optional picture reveal takes 300 ms. Deadlines use elapsed monotonic time,
+with no extra frame queue or timer thread.
+
+`Pedalboard.oledArtwork` is optional embedded metadata: exactly 640 integer
+bytes, row-major, MSB first, 1 = lit. The server validates before narrowing and
+expands development-era 384-byte artwork when read. Copies, saves and
+bank/preset ZIP round trips preserve it. The preset menu's
+OLED artwork editor converts a local PNG/JPEG/WebP with browser canvas,
+providing fit/crop, threshold, invert, Remove and a matching pixel preview.
+Limits are 2 MiB and 2048×2048 decoded pixels. Applying uses a narrow
+identity-checked metadata update and marks the board dirty without reloading
+the audio graph; saving makes it permanent.
+
+The built-in SuprDuprNatural logo is a 128×64 white-on-black bitmap with the
+original grey shadow removed. It reveals left to right over 800 ms, holds
+until 2200 ms, and appears once per service start. Hardware activity cancels
+it and Blank suppresses it. Settings changes and OLED/browser reconnects do
+not replay it. The Pi has no runtime image decoder.
 
 ### Built-in tuner
 
 The OLED tuner is independent of the SuprTuner LV2 plugin. It reads a lock-free
 copy of the main input, so no tuner plugin is required in the pedalboard and
 the audio path is never muted or altered. Analysis runs only while the tuner
-screen is selected.
+screen is selected, including while a notice, boot logo or navigation overlay
+is being drawn.
 
 `src/GpioTuner.hpp` contains the bass-first 18–500 Hz NSDF analyser adapted
 from SuprTuner. `Ssd1306Display::DrawTuner` in `src/Gpio.cpp` renders the frame:
@@ -251,7 +290,8 @@ framebuffer and performs all OLED I²C writes. Audio callbacks and UI/model
 callbacks must never draw or touch I²C.
 
 Display entry points update mutex-protected snapshots. The worker chooses the
-active overlay or passive screen on its next tick. Full OLED frames are sent
+active overlay or passive screen on its next tick, composites any preset
+notice, and flushes exactly once. Full OLED frames are sent
 in small chunks that yield the shared bus between writes, keeping encoder
 polling responsive.
 
@@ -259,6 +299,10 @@ The default OLED refresh interval is 200 ms and the supported minimum is
 50 ms. Lower it for smoother tuner or waveform motion only after checking the
 complete I²C rig. Parameter overlays are forced immediately; browser edits
 wait for the next scheduled frame so they cannot flood the bus.
+Both reveals obey that same refresh interval. Overlay changes during a preset
+notice wait without forcing extra frames; they are consumed after expiry. A
+failed OLED open or write is nonfatal; the worker retries opening it after five
+seconds.
 
 ### OLED implementation map
 
@@ -267,9 +311,13 @@ wait for the next scheduled frame so they cannot flood the bus.
 | `src/Gpio.hpp` | Settings, display modes and manager interface |
 | `src/Gpio.cpp` | SSD1306 drawing, input workers, overlays and display worker |
 | `src/GpioTuner.hpp` | Built-in pitch and strobe analyser |
+| `src/OledArtwork.hpp` | Bounded bitmap metadata and JSON validation |
+| `src/SuprDuprBootLogo.hpp` | Compiled monochrome boot bitmap |
 | `src/PiPedalModel.cpp` | Hardware navigation, parameter dashboard and audio providers |
 | `src/AudioHost.*` | Lock-free waveform and tuner sample capture |
 | `vite/src/pipedal/GpioSettingsDialog.tsx` | Browser configuration UI |
+| `vite/src/pipedal/OledArtworkDialog.tsx` | Preset picture editor and OLED preview |
+| `vite/src/pipedal/OledArtwork.ts` | Browser conversion, limits and text layout |
 | `docs/GpioControls.md` | Wiring, use and troubleshooting |
 
 ### OLED verification
@@ -278,6 +326,9 @@ Before calling a display change complete:
 
 - run the PiPedal GPIO tests, including the bass-note tuner lock test;
 - run `npm run build` in `pipedal/vite`;
+- run `test/oled_regression.py` and `vite/test/oled-artwork.mjs`;
+- use `test/preset_oled_integration.mjs` only against an isolated test data root
+  to check two clients, save/copy/overwrite, ZIP imports, restart and failed writes;
 - check Controls, Waveform, Tuner and Blank modes on the physical OLED;
 - confirm parameter and navigation overlays appear and time out;
 - verify encoder polling remains responsive during full-frame updates;

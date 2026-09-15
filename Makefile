@@ -52,31 +52,31 @@ build/test_forge: Makefile test/test_forge.cpp src/SuprForge.cpp src/ForgeDsp.h 
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_forge.cpp src/SuprForge.cpp
 
-build/suproctave.so: src/SuprOctave.cpp src/OctaverDsp.h
+build/suproctave.so: Makefile src/SuprOctave.cpp src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprOctave.cpp
 
-build/suproctaveplus.so: src/SuprOctavePlus.cpp src/OctaverPlusDsp.h src/OctaverDsp.h
+build/suproctaveplus.so: Makefile src/SuprOctavePlus.cpp src/OctaverPlusDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprOctavePlus.cpp
 
-build/suprenvfilter.so: src/SuprEnvFilter.cpp src/EnvFilterDsp.h src/OctaverDsp.h
+build/suprenvfilter.so: Makefile src/SuprEnvFilter.cpp src/EnvFilterDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprEnvFilter.cpp
 
-build/suprcompressor.so: src/SuprCompressor.cpp src/CompressorDsp.h src/OctaverDsp.h
+build/suprcompressor.so: Makefile src/SuprCompressor.cpp src/CompressorDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprCompressor.cpp
 
-build/suprvu.so: src/SuprVu.cpp src/VuMeterDsp.h src/OctaverDsp.h
+build/suprvu.so: Makefile src/SuprVu.cpp src/VuMeterDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprVu.cpp
 
-build/suprtuner.so: src/SuprTuner.cpp src/TunerDsp.h src/OctaverDsp.h
+build/suprtuner.so: Makefile src/SuprTuner.cpp src/TunerDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprTuner.cpp
 
-build/suprsans.so: src/SuprSans.cpp src/SansDsp.h src/OctaverDsp.h
+build/suprsans.so: Makefile src/SuprSans.cpp src/SansDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprSans.cpp
 
@@ -88,7 +88,7 @@ build/suprclack.so: Makefile src/SuprClack.cpp src/ClackDsp.h src/TunerDsp.h src
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprClack.cpp
 
-build/suprband.so: src/SuprBand.cpp src/BandDsp.h src/SansDsp.h src/OctaverDsp.h
+build/suprband.so: Makefile src/SuprBand.cpp src/BandDsp.h src/SansDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprBand.cpp
 
@@ -96,7 +96,7 @@ build/suprfuzz.so: Makefile src/SuprFuzz.cpp src/FuzzDsp.h src/SansDsp.h src/Oct
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprFuzz.cpp
 
-build/suprchorus.so: src/SuprChorus.cpp src/ChorusDsp.h src/OctaverDsp.h
+build/suprchorus.so: Makefile src/SuprChorus.cpp src/ChorusDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprChorus.cpp
 
@@ -104,14 +104,14 @@ build/test_octaver: Makefile test/test_octaver.cpp $(wildcard src/*.h)
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) -Isrc -o $@ test/test_octaver.cpp
 
-build/test_tuner: test/test_tuner.cpp src/SuprTuner.cpp src/TunerDsp.h src/OctaverDsp.h
+build/test_tuner: Makefile test/test_tuner.cpp src/SuprTuner.cpp src/TunerDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_tuner.cpp src/SuprTuner.cpp
 
 # The measurement rig SuprFuzz and SuprSans were fitted with. Dependency-free,
 # unlike its counterpart tools/nam_probe.cpp, which needs NeuralAudio and so
 # builds out of CMakeLists.txt with `make nam`.
-build/fuzz_probe: tools/fuzz_probe.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPlusDsp.h src/OctaverDsp.h
+build/fuzz_probe: Makefile tools/fuzz_probe.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPlusDsp.h src/OctaverDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -Isrc -o $@ tools/fuzz_probe.cpp
 

@@ -111,13 +111,8 @@ The chorus delay is the effect itself, not a delay on its dry path.
 - [SuprClack](docs/SUPRCLACK.md) — the cleanup pedal in enough detail to
   change it safely.
 - [SuprForge](docs/SUPRFORGE.md) — controls, factory sounds, signal path and measurements.
-- [Reliability and compatibility](docs/RELIABILITY.md) — signal paths, saved controls and host/NAM contracts.
-- [Release status](docs/RELEASE_STATUS.md) — deployment evidence and remaining acceptance.
-- [Roadmap](docs/ROADMAP.md) — collection status and deferred work.
 - [Supr design and hardware UI](docs/SUPRDESIGN.md) — custom PiPedal faces,
   shared controls, live displays and the implemented OLED path.
-
-Operational build and Pi deployment notes are in [AGENTS.md](AGENTS.md).
 
 ## License
 
