@@ -157,6 +157,38 @@ The web SuprTuner display consumes five of the tuner plugin's output ports:
 across 0/1 before rendering motion. `level` remains available to other
 renderers.
 
+### Persistent output meter
+
+PiPedal's desktop toolbar includes a compact output meter independent of the
+selected effect or preset. `OutputMeter.tsx` draws amber seven-segment LUFS
+numerals, mono/stereo sample-peak bars, a short peak hold and clipping indication.
+The only visible labels are LUFS, dBFS and the peak scale. It hides at viewport
+widths of 900 px or less so the existing preset and toolbar controls keep space.
+There are no targets, calibration controls or preset parameters.
+
+`OutputLoudness.hpp` measures the routed main device output, including the
+pedalboard output gain and any audio mixed onto those device channels. It uses
+BS.1770 K-weighting per channel and sums channel energies into an ungated
+three-second window, updated every 100 ms. This is short-term loudness, not
+integrated loudness or true peak. The peak bars use PiPedal's existing sample
+peaks. Neither measurement includes the codec's analogue gain.
+
+The analyser belongs to `AudioHost` and runs without a UI subscription. Preset
+and VU subscription replacement must not reset it. Only opening the audio device
+prepares a fresh analyser. Initial history is silence; after a preset change the
+three-second window rolls naturally into the new signal. The optional
+`outputLufs` VU message field carries the current result; -120 is finite silence.
+Older hosts leave the LUFS display blank rather than estimating it from peaks.
+The browser re-subscribes after reconnect and blanks stale/disconnected readings.
+
+Validate with `outputLoudnessTest` (also compilable standalone with C++17),
+`node test/output-meter.mjs` from `vite`, and the web build. The native test
+covers three sample rates, mono/stereo calibration, opposite-phase stereo,
+block boundaries, continuous gain changes, silence and invalid input. Bass and
+high-frequency reference values were cross-checked against FFmpeg's `ebur128`.
+Before deployment, also build the Linux host and verify real preset changes on
+the Pi; a standalone toolbar preview cannot establish those hardware results.
+
 ### Adding or changing a face
 
 1. Put the control and output contract in the plugin TTL.
