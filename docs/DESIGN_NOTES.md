@@ -8,7 +8,7 @@ Run `make test` before and after changing a DSP path.
 
 ### Keep the audio callback bounded
 
-The sixteen regular pedals use fixed storage and allocate nothing while
+The seventeen regular pedals use fixed storage and allocate nothing while
 processing. Their DSP is header-only so the same implementation runs in the
 LV2 plugin and the offline harness. SuprNAM loads models outside the audio
 thread and uses pre-created real-time workers when Threaded mode is enabled.
@@ -249,6 +249,10 @@ actual cost depends on the capture and routing. One inline model is
 comfortable; two or three should normally use Threaded mode.
 
 ## Verification
+
+SuprVowel's design and measured acceptance criteria are in
+[SUPRVOWEL.md](SUPRVOWEL.md). It reuses SuprEnvelope's SVF/envelope primitives
+without changing them; pitch tracking is not part of its signal path.
 
 ```sh
 make test       # regular pedal suite

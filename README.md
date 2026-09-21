@@ -1,6 +1,6 @@
 # SuprPedals
 
-SuprPedals is a collection of seventeen bass-focused LV2 plugins for Raspberry
+SuprPedals is a collection of eighteen bass-focused LV2 plugins for Raspberry
 Pi and [PiPedal](https://rerdavies.github.io/pipedal/). It covers pitch,
 dynamics, drive, modulation, delay, reverb, metering and multi-model NAM routing.
 
@@ -16,6 +16,7 @@ are part of the companion [PiPedal fork](https://github.com/SuprDuprNatural/pipe
 | **SuprOctave** | OC-2-style sub octave with adaptive bass tracking |
 | **SuprOctavePlus** | SuprOctave plus a two-oscillator monophonic synth driven by the string rather than MIDI |
 | **SuprEnvelope** | Bass envelope filter with LP, BP and HP modes, reverse sweep and dry blend |
+| **[SuprVowel](docs/SUPRVOWEL.md)** | Five-vowel formant voice with envelope, manual/expression and LFO morphing, plus protected lows |
 | **SuprCompressor** | Soft-knee compressor with sidechain high-pass and parallel blend |
 | **SuprTransient** | Attack and sustain shaper measured against an SPL Transient Designer; Focus protects the fundamental |
 | **SuprClack** | Reduces fret clack, scrapes, sympathetic ring, shift noise and noise between notes |
@@ -33,7 +34,7 @@ are part of the companion [PiPedal fork](https://github.com/SuprDuprNatural/pipe
 
 ## Build and install
 
-The first sixteen plugins are dependency-free apart from the included LV2
+The seventeen non-NAM plugins are dependency-free apart from the included LV2
 header:
 
 ```sh
@@ -96,7 +97,7 @@ Reported fixed latency:
 
 | Plugins | Latency |
 | --- | --- |
-| Octave, OctavePlus, Envelope, Compressor, Transient, VU, Tuner, Chorus, Echo, Space, Phase | 0 samples |
+| Octave, OctavePlus, Envelope, Vowel, Compressor, Transient, VU, Tuner, Chorus, Echo, Space, Phase | 0 samples |
 | Sans, Fuzz, Band | 15 samples from the 2× halfband round trip |
 | Forge | 23 samples from the 4× oversampling round trip |
 | Clack | 2 ms lookahead |
@@ -111,6 +112,7 @@ The chorus delay is the effect itself, not a delay on its dry path.
 - [SuprClack](docs/SUPRCLACK.md) — the cleanup pedal in enough detail to
   change it safely.
 - [SuprForge](docs/SUPRFORGE.md) — controls, factory sounds, signal path and measurements.
+- [SuprVowel](docs/SUPRVOWEL.md) — vocal morphing, expression mapping, Envelope combinations and local measurements.
 - [Supr design and hardware UI](docs/SUPRDESIGN.md) — custom PiPedal faces,
   shared controls, live displays and the implemented OLED path.
 

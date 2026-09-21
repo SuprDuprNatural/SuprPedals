@@ -134,6 +134,9 @@ demo: build/test_octaver
 	@echo "Demo WAVs written to build/demo/"
 
 install: all
+	install -d $(DESTDIR)$(LV2_DIR)/suprvowel.lv2
+	install -m 644 build/suprvowel.so ttl/suprvowel.ttl ttl/vowel-presets.ttl $(DESTDIR)$(LV2_DIR)/suprvowel.lv2/
+	install -m 644 ttl/vowel-manifest.ttl $(DESTDIR)$(LV2_DIR)/suprvowel.lv2/manifest.ttl
 	install -d $(DESTDIR)$(LV2_DIR)/suprphase.lv2
 	install -m 644 build/suprphase.so ttl/suprphase.ttl ttl/phase-presets.ttl $(DESTDIR)$(LV2_DIR)/suprphase.lv2/
 	install -m 644 ttl/phase-manifest.ttl $(DESTDIR)$(LV2_DIR)/suprphase.lv2/manifest.ttl
@@ -183,6 +186,7 @@ install: all
 	install -m 644 ttl/forge-manifest.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE13)/manifest.ttl
 
 uninstall:
+	rm -rf $(DESTDIR)$(LV2_DIR)/suprvowel.lv2
 	rm -rf $(DESTDIR)$(LV2_DIR)/suprphase.lv2
 	rm -rf $(DESTDIR)$(LV2_DIR)/$(BUNDLE14) $(DESTDIR)$(LV2_DIR)/$(BUNDLE15)
 	rm -rf $(DESTDIR)$(LV2_DIR)/$(BUNDLE13)
@@ -277,6 +281,24 @@ test: test-signal-integrity
 test-signal-integrity: build/test_band
 
 .PHONY: test-signal-integrity
+
+# SuprVowel shares the existing envelope/SVF primitives without modifying them.
+all: build/suprvowel.so
+
+build/suprvowel.so: Makefile src/SuprVowel.cpp src/VowelDsp.h src/EnvFilterDsp.h src/OctaverDsp.h
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprVowel.cpp
+
+build/test_vowel: Makefile test/test_vowel.cpp src/SuprVowel.cpp src/VowelDsp.h src/EnvFilterDsp.h src/OctaverDsp.h
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_vowel.cpp src/SuprVowel.cpp
+
+test: test-vowel
+test-vowel: build/test_vowel build/suprvowel.so
+	./build/test_vowel
+	python3 test/validate_vowel.py
+
+.PHONY: test-vowel
 
 build/test_clean: Makefile test/test_clean.cpp test/test_octaver.cpp src/SuprCompressor.cpp $(wildcard src/*.h)
 	@mkdir -p build

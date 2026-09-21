@@ -1,0 +1,91 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+
+<https://suprduprnatural.github.io/supr-pedals/vowel#fonky> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/vowel> ; rdfs:label "Fonky Conversation" ;
+    lv2:port [ lv2:symbol "vowel_a" ; pset:value 0 ],
+    [ lv2:symbol "vowel_b" ; pset:value 2 ],
+    [ lv2:symbol "mode" ; pset:value 1 ],
+    [ lv2:symbol "position" ; pset:value 0 ],
+    [ lv2:symbol "depth" ; pset:value 1 ],
+    [ lv2:symbol "rate" ; pset:value 1 ],
+    [ lv2:symbol "sensitivity" ; pset:value 6 ],
+    [ lv2:symbol "release" ; pset:value 180 ],
+    [ lv2:symbol "throat" ; pset:value 0 ],
+    [ lv2:symbol "focus" ; pset:value 0.6 ],
+    [ lv2:symbol "mix" ; pset:value 0.8 ],
+    [ lv2:symbol "level" ; pset:value 0 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/vowel#yah> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/vowel> ; rdfs:label "Yah Bass" ;
+    lv2:port [ lv2:symbol "vowel_a" ; pset:value 4 ],
+    [ lv2:symbol "vowel_b" ; pset:value 2 ],
+    [ lv2:symbol "mode" ; pset:value 1 ],
+    [ lv2:symbol "position" ; pset:value 0 ],
+    [ lv2:symbol "depth" ; pset:value 1 ],
+    [ lv2:symbol "rate" ; pset:value 1 ],
+    [ lv2:symbol "sensitivity" ; pset:value 10 ],
+    [ lv2:symbol "release" ; pset:value 120 ],
+    [ lv2:symbol "throat" ; pset:value 0 ],
+    [ lv2:symbol "focus" ; pset:value 0.75 ],
+    [ lv2:symbol "mix" ; pset:value 1 ],
+    [ lv2:symbol "level" ; pset:value 0 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/vowel#reverse> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/vowel> ; rdfs:label "Reverse Talk" ;
+    lv2:port [ lv2:symbol "vowel_a" ; pset:value 2 ],
+    [ lv2:symbol "vowel_b" ; pset:value 0 ],
+    [ lv2:symbol "mode" ; pset:value 1 ],
+    [ lv2:symbol "position" ; pset:value 0 ],
+    [ lv2:symbol "depth" ; pset:value 1 ],
+    [ lv2:symbol "rate" ; pset:value 1 ],
+    [ lv2:symbol "sensitivity" ; pset:value 8 ],
+    [ lv2:symbol "release" ; pset:value 260 ],
+    [ lv2:symbol "throat" ; pset:value 0 ],
+    [ lv2:symbol "focus" ; pset:value 0.65 ],
+    [ lv2:symbol "mix" ; pset:value 0.9 ],
+    [ lv2:symbol "level" ; pset:value 0 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/vowel#slow> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/vowel> ; rdfs:label "Slow Mouth" ;
+    lv2:port [ lv2:symbol "vowel_a" ; pset:value 0 ],
+    [ lv2:symbol "vowel_b" ; pset:value 4 ],
+    [ lv2:symbol "mode" ; pset:value 2 ],
+    [ lv2:symbol "position" ; pset:value 0 ],
+    [ lv2:symbol "depth" ; pset:value 1 ],
+    [ lv2:symbol "rate" ; pset:value 0.35 ],
+    [ lv2:symbol "sensitivity" ; pset:value 6 ],
+    [ lv2:symbol "release" ; pset:value 180 ],
+    [ lv2:symbol "throat" ; pset:value 0 ],
+    [ lv2:symbol "focus" ; pset:value 0.5 ],
+    [ lv2:symbol "mix" ; pset:value 0.8 ],
+    [ lv2:symbol "level" ; pset:value 0 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/vowel#expression> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/vowel> ; rdfs:label "Expression Voice" ;
+    lv2:port [ lv2:symbol "vowel_a" ; pset:value 0 ],
+    [ lv2:symbol "vowel_b" ; pset:value 2 ],
+    [ lv2:symbol "mode" ; pset:value 0 ],
+    [ lv2:symbol "position" ; pset:value 0.5 ],
+    [ lv2:symbol "depth" ; pset:value 1 ],
+    [ lv2:symbol "rate" ; pset:value 1 ],
+    [ lv2:symbol "sensitivity" ; pset:value 6 ],
+    [ lv2:symbol "release" ; pset:value 180 ],
+    [ lv2:symbol "throat" ; pset:value 0 ],
+    [ lv2:symbol "focus" ; pset:value 0.7 ],
+    [ lv2:symbol "mix" ; pset:value 1 ],
+    [ lv2:symbol "level" ; pset:value 0 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/vowel#envelope> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/vowel> ; rdfs:label "Envelope Companion" ;
+    lv2:port [ lv2:symbol "vowel_a" ; pset:value 1 ],
+    [ lv2:symbol "vowel_b" ; pset:value 3 ],
+    [ lv2:symbol "mode" ; pset:value 2 ],
+    [ lv2:symbol "position" ; pset:value 0 ],
+    [ lv2:symbol "depth" ; pset:value 0.8 ],
+    [ lv2:symbol "rate" ; pset:value 1.6 ],
+    [ lv2:symbol "sensitivity" ; pset:value 6 ],
+    [ lv2:symbol "release" ; pset:value 180 ],
+    [ lv2:symbol "throat" ; pset:value 2 ],
+    [ lv2:symbol "focus" ; pset:value 0.45 ],
+    [ lv2:symbol "mix" ; pset:value 0.65 ],
+    [ lv2:symbol "level" ; pset:value 0 ] .
