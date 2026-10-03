@@ -34,7 +34,7 @@ ch:outputGroup
     lv2:optionalFeature lv2:hardRTCapable ;
     mod:brand "Supr" ;
     mod:label "SuprChorus" ;
-    rdfs:comment "A chorus that leaves the fundamental alone. Everything below the Low knob passes through undelayed and unmodulated while the band above it is chorused by up to three voices, so the low end stays put instead of wobbling." ;
+    rdfs:comment "A chorus with up to three voices above the Low cutoff. Mix crossfades the complete dry signal to the filtered wet voices." ;
     lv2:port [
         a lv2:AudioPort , lv2:InputPort ;
         lv2:index 0 ;
@@ -93,7 +93,7 @@ ch:outputGroup
         lv2:maximum 400.0 ;
         lv2:portProperty pprops:logarithmic ;
         units:unit units:hz ;
-        rdfs:comment "Everything below this is left alone — no delay, no modulation, no comb. Set it above your lowest fundamental. At 20 the split is effectively off and the whole signal choruses." ;
+        rdfs:comment "High-pass cutoff for the chorused voices. Clean bass comes from the dry side of Mix and fades out at full wet. At 20 the whole audible band choruses." ;
     ] , [
         a lv2:ControlPort , lv2:InputPort ;
         lv2:index 6 ;
@@ -115,7 +115,7 @@ ch:outputGroup
         lv2:default 0.35 ;
         lv2:minimum 0.0 ;
         lv2:maximum 1.0 ;
-        rdfs:comment "Dry to chorused, within the band above Low. The low band sits at full level throughout, so this never thins the bottom out." ;
+        rdfs:comment "Linear crossfade from the complete dry signal to the chorused voices. One is wet only, including below Low." ;
     ] , [
         a lv2:ControlPort , lv2:OutputPort ;
         lv2:index 8 ;

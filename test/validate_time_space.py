@@ -3,8 +3,8 @@ import re
 from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 contracts = {
-    'echo': 'in out time feedback mix duck tone lowcut recovery division send hold duck_gr',
-    'space': 'in out mix decay tone duck predelay lowcut recovery send duck_gr',
+    'echo': 'in out time feedback dry duck tone lowcut recovery division send hold duck_gr wet',
+    'space': 'in out dry decay tone duck predelay lowcut recovery send duck_gr wet',
 }
 try:
     import rdflib
@@ -21,6 +21,6 @@ for effect, names in contracts.items():
             rdflib.Graph().parse(root / 'ttl' / file, format='turtle')
     preset = (root / f'ttl/{effect}-presets.ttl').read_text()
     for block in preset.split('a pset:Preset')[1:]:
-        assert re.findall(r'lv2:symbol "([^"]+)"', block) == names.split()[2:-1]
+        assert re.findall(r'lv2:symbol "([^"]+)"', block) == [s for s in names.split()[2:] if s != 'duck_gr']
     assert f'supr{effect}.so' in (root / f'ttl/{effect}-manifest.ttl').read_text()
     print(f'PASS {effect}: enum/TTL/presets agree ({len(expected)} ports); RDF {"parsed" if rdflib else "unavailable"}')

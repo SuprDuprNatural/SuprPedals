@@ -9,7 +9,7 @@
 //                │              │(±1, edge-smoothed)
 //                └── × ─────────┘
 //                    │ oct-1 voice
-//                  tone LPF + soft clip
+//                  2x soft drive → high-pass → low-pass
 //
 // The flip-flops flip the polarity of the band-limited input once per input
 // period, which halves (quarters) the fundamental while the amplitude keeps
@@ -31,6 +31,8 @@
 
 #pragma once
 
+#include "FilterDsp.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -44,17 +46,18 @@ inline float clampf(float v, float lo, float hi)
 
 // RBJ cookbook biquad, transposed direct form II.
 struct Biquad {
-    float b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
-    float z1 = 0, z2 = 0;
+    // Bass cutoffs need double precision, especially at 96/192 kHz.
+    double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
+    double z1 = 0, z2 = 0;
 
     void reset() { z1 = z2 = 0; }
 
     void setLowpass(float fs, float fc, float q)
     {
-        const float w     = 2.0f * float(M_PI) * fc / fs;
-        const float cw    = std::cos(w);
-        const float alpha = std::sin(w) / (2.0f * q);
-        const float a0    = 1.0f + alpha;
+        const double w     = 2.0 * M_PI * std::min(double(fc), 0.45 * fs) / fs;
+        const double cw    = std::cos(w);
+        const double alpha = std::sin(w) / (2.0 * q);
+        const double a0    = 1.0 + alpha;
         b0 = ((1.0f - cw) * 0.5f) / a0;
         b1 = (1.0f - cw) / a0;
         b2 = b0;
@@ -64,10 +67,10 @@ struct Biquad {
 
     void setHighpass(float fs, float fc, float q)
     {
-        const float w     = 2.0f * float(M_PI) * fc / fs;
-        const float cw    = std::cos(w);
-        const float alpha = std::sin(w) / (2.0f * q);
-        const float a0    = 1.0f + alpha;
+        const double w     = 2.0 * M_PI * std::min(double(fc), 0.45 * fs) / fs;
+        const double cw    = std::cos(w);
+        const double alpha = std::sin(w) / (2.0 * q);
+        const double a0    = 1.0 + alpha;
         b0 = ((1.0f + cw) * 0.5f) / a0;
         b1 = -(1.0f + cw) / a0;
         b2 = b0;
@@ -77,10 +80,12 @@ struct Biquad {
 
     float process(float x)
     {
-        const float y = b0 * x + z1;
+        const double y = b0 * x + z1;
         z1 = b1 * x - a1 * y + z2;
         z2 = b2 * x - a2 * y;
-        return y;
+        if (std::abs(z1) < 1e-30) z1 = 0;
+        if (std::abs(z2) < 1e-30) z2 = 0;
+        return float(y);
     }
 };
 
@@ -257,7 +262,7 @@ struct PitchTracker {
         // deadlocks at the old, too-low pitch; instead reacquire: reopen the
         // filter, and once the band comes back, re-lock fast.
         if (active && !confident) {
-            ++lowConfCount;
+            if (lowConfCount <= int(kLapseSec * fs)) ++lowConfCount;
         } else {
             if (lowConfCount > int(kLapseSec * fs)) {
                 fastAdaptEdges = kFastEdges;
@@ -378,11 +383,12 @@ public:
 
         dcIn.set(fs, 10.0f);
         dcOut.set(fs, 8.0f); // low enough to pass a 20.6 Hz sub from low E
+        oversampler.init();
 
         kGain = 1.0f - std::exp(-1.0f / (fs * 0.010f));
         kComp = 1.0f - std::exp(-1.0f / (fs * 0.010f));
+        kFilter = 1.0f - std::exp(-float(kFilterInterval) / (fs * 0.020f));
 
-        setTone(toneHz, true);
         reset();
     }
 
@@ -390,9 +396,12 @@ public:
     {
         trk.reset();
         tone1.reset();
+        highpass.reset();
+        oversampler.reset();
         dcIn.reset();
         dcOut.reset();
         compRatio = 1.0f;
+        filterRemaining = 0;
         snapGains = true;
     }
 
@@ -400,13 +409,27 @@ public:
     void setDirect(float g) { directTarget = clampf(g, 0.0f, 2.0f); }
     void setOct1(float g) { oct1Target = clampf(g, 0.0f, 2.0f); }
 
-    void setTone(float hz, bool force = false)
+    void setTone(float hz)
     {
-        hz = clampf(hz, 100.0f, 8000.0f);
-        if (!force && std::fabs(hz - toneHz) < 1.0f)
+        toneTarget = std::isfinite(hz) ? clampf(hz, 100.0f, 8000.0f) : 150.0f;
+    }
+
+    void setHighpass(float hz)
+    {
+        highpassTarget = std::isfinite(hz) ? clampf(hz, 10.0f, 1000.0f) : 10.0f;
+        highpassMixTarget = highpassTarget > 10.0f ? 1.0f : 0.0f;
+    }
+
+    void setDrive(float amount)
+    {
+        amount = std::isfinite(amount) ? clampf(amount, 0.0f, 10.0f) : 0.0f;
+        if (amount == driveKnob)
             return;
-        toneHz = hz;
-        tone1.setLowpass(fs, toneHz, 0.7071f);
+        driveKnob = amount;
+        // 24 dB of push into a rounded symmetric clipper; 9 dB of trim
+        // keeps a strong sub from turning Drive into another level knob.
+        driveTarget = kDrive * std::pow(10.0f, amount * 2.4f / 20.0f);
+        trimTarget = kDriveInv * std::pow(10.0f, -amount * 0.9f / 20.0f);
     }
 
     void setGateDb(float db) { trk.setGateDb(db); }
@@ -414,12 +437,29 @@ public:
     // -- audio ---------------------------------------------------------------
     void process(const float* in, float* out, uint32_t n)
     {
+        if (n == 0)
+            return;
         if (snapGains) {
             directGain = directTarget;
             oct1Gain   = oct1Target;
+            driveGain = driveTarget;
+            driveTrim = trimTarget;
+            toneHz = toneTarget;
+            highpassHz = highpassTarget;
+            highpassMix = highpassMixTarget;
             snapGains  = false;
         }
         for (uint32_t i = 0; i < n; ++i) {
+            // Sample-counted updates keep sweeps independent of host blocks.
+            // TPT sections retain their integrator state as the cutoffs move.
+            if (filterRemaining == 0) {
+                toneHz += (toneTarget - toneHz) * kFilter;
+                highpassHz += (highpassTarget - highpassHz) * kFilter;
+                tone1.setLowpass(fs, toneHz, 0.70710678);
+                highpass.setHighpass(fs, highpassHz, 0.70710678);
+                filterRemaining = kFilterInterval;
+            }
+            --filterRemaining;
             const float x = dcIn.process(in[i] + 1e-12f);
             trk.step(x);
 
@@ -430,9 +470,19 @@ public:
             compRatio += (targetRatio - compRatio) * kComp;
             const float v = trk.t * compRatio;
 
-            // Sub-octave voice: polarity-switch, tone LPF, soft clip.
-            float v1 = tone1.process(v * trk.s1 + 1e-12f);
-            v1 = std::tanh(v1 * kDrive) * kDriveInv;
+            // Saturate the generated voice at 2x, then shape its harmonics.
+            // The tracker always sees the clean input, even at full drive.
+            driveGain += (driveTarget - driveGain) * kGain;
+            driveTrim += (trimTarget - driveTrim) * kGain;
+            highpassMix += (highpassMixTarget - highpassMix) * kGain;
+            float os[2];
+            oversampler.up(v * trk.s1 + 1e-12f, os);
+            for (float& sample : os)
+                sample = std::tanh(sample * driveGain) * driveTrim;
+            float v1 = oversampler.down(os);
+            const float filtered = highpass.process(v1);
+            v1 += highpassMix * (filtered - v1);
+            v1 = tone1.process(v1);
 
             directGain += (directTarget - directGain) * kGain;
             oct1Gain += (oct1Target - oct1Gain) * kGain;
@@ -452,11 +502,13 @@ public:
 private:
     static constexpr float kDrive    = 1.5f; // gentle analog-ish grit
     static constexpr float kDriveInv = 1.0f / 1.1f;
+    static constexpr int kFilterInterval = 16;
 
     float fs = 48000.0f;
 
     PitchTracker trk;
-    Biquad tone1;
+    Svf tone1, highpass;
+    Halfband2x oversampler;
     DcBlocker dcIn, dcOut;
 
     float compRatio = 1.0f;
@@ -464,8 +516,15 @@ private:
 
     float directTarget = 1.0f, oct1Target = 0.5f;
     float directGain = 1.0f, oct1Gain = 0.5f;
-    float toneHz = 150.0f;
+    float toneHz = 150.0f, toneTarget = 150.0f;
+    float highpassHz = 10.0f, highpassTarget = 10.0f;
+    float highpassMix = 0.0f, highpassMixTarget = 0.0f;
+    float driveKnob = 0.0f;
+    float driveGain = kDrive, driveTarget = kDrive;
+    float driveTrim = kDriveInv, trimTarget = kDriveInv;
     float kGain = 0.01f;
+    float kFilter = 0.01f;
+    int filterRemaining = 0;
     bool snapGains = true;
 };
 

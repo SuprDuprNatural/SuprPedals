@@ -7,6 +7,8 @@
 #include <cstring>
 #include <vector>
 
+static float percentToDb(double percent) { return percent>0?float(20*std::log10(percent/50)):-60.f; }
+
 using Dsp=supr::VowelDsp;
 using Complex=std::complex<double>;
 constexpr double pi=3.14159265358979323846;
@@ -14,9 +16,9 @@ int failures=0;
 void check(bool ok,const char* message) {
     if(!ok){std::printf("FAIL: %s\n",message);++failures;}
 }
-std::array<float,12> controls(Dsp::Params p) {
+std::array<float,13> controls(Dsp::Params p) {
     return {p.vowel_a,p.vowel_b,p.mode,p.position,p.depth,p.rate,
-            p.sensitivity,p.release,p.throat,p.focus,p.mix,p.level};
+            p.sensitivity,p.release,p.throat,p.focus,p.dry,p.wet,p.protect};
 }
 std::vector<float> signal(unsigned n,double sr) {
     std::vector<float> x(n); unsigned rng=12345;
@@ -32,7 +34,7 @@ std::vector<float> fixed(double sr,Dsp::Params p,std::vector<float> x,bool host=
         auto* desc=lv2_descriptor(0);
         auto h=desc->instantiate(desc,sr,"",nullptr); check(h!=nullptr,"instantiate");
         auto cv=controls(p); float meter[4]{};
-        for(unsigned i=0;i<cv.size();++i)desc->connect_port(h,i+2,&cv[i]);
+        for(unsigned i=0;i<cv.size();++i)desc->connect_port(h,i==12?18:i+2,&cv[i]);
         for(unsigned i=0;i<4;++i)desc->connect_port(h,i+14,&meter[i]);
         desc->activate(h); desc->run(h,0);
         for(unsigned i=0;i<x.size();i+=73) {
@@ -65,7 +67,11 @@ Complex theory(double sr,double hz,Dsp::Params p) {
     const Complex z=std::polar(1.,-2*pi*hz/sr);
     const double a=1/(1+std::tan(pi*250/sr));
     const Complex h=a*(1.-z)/(1.-(2*a-1)*z);
-    return std::pow(10.,p.level/20.)*(1.+double(p.mix)*h*h*(voice-1.));
+    const Complex s(0,std::tan(pi*hz/sr)/std::tan(pi*250/sr));
+    const auto denominator=std::pow(s*s+std::sqrt(2.)*s+1.,2);
+    const auto low=1./denominator, high=std::pow(s,4)/denominator;
+    const double dryGain=supr::timespace::returnGain(p.dry),wetGain=supr::timespace::returnGain(p.wet);
+    return p.protect?low+high*(dryGain+wetGain*voice):dryGain+wetGain*h*h*voice;
 }
 Complex measured(double sr,double hz,Dsp::Params p) {
     const unsigned n=unsigned(sr*.35);
@@ -84,8 +90,8 @@ Dsp::Params automated(unsigned event) {
     p.vowel_a=float(event%5); p.vowel_b=float((event+2)%5); p.mode=float(event%3);
     p.position=event%2?1:0; p.depth=event%3?1:0; p.rate=event%2?8:.05f;
     p.sensitivity=event%2?24:-24; p.release=event%2?40:800;
-    p.throat=event%2?6:-6; p.focus=float(event%2); p.mix=event%3?1:0;
-    p.level=event%2?12:-12; return p;
+    p.throat=event%2?6:-6; p.focus=float(event%2); p.dry=percentToDb(100*(1-(event%3?1:0)));p.wet=percentToDb(100*(event%3?1:0));
+    if(p.wet>-60)p.wet+=(event%2?12:-12); p.protect=event%2; return p;
 }
 std::vector<float> automation(double sr,const std::vector<float>& input,bool host,bool split,bool inplace) {
     auto x=input; std::vector<float> y(x.size());
@@ -94,7 +100,7 @@ std::vector<float> automation(double sr,const std::vector<float>& input,bool hos
     LV2_Handle h=host?desc->instantiate(desc,sr,"",nullptr):nullptr;
     float meter[4]{};
     if(host) {
-        for(unsigned j=0;j<cv.size();++j)desc->connect_port(h,j+2,&cv[j]);
+        for(unsigned j=0;j<cv.size();++j)desc->connect_port(h,j==12?18:j+2,&cv[j]);
         for(unsigned j=0;j<4;++j)desc->connect_port(h,j+14,&meter[j]);
         desc->activate(h);desc->run(h,0);
     }
@@ -116,7 +122,7 @@ std::vector<float> automation(double sr,const std::vector<float>& input,bool hos
 }
 void suite(double sr) {
     std::printf("\nSuprVowel %.0f Hz\n",sr);
-    Dsp::Params p; p.mode=0; p.mix=1;
+    Dsp::Params p; p.mode=0; p.dry=percentToDb(0);p.wet=percentToDb(100);
     double error=0,lowMin=100,lowMax=-100;
     for(float vowel:{0.f,1.f,2.f,3.f,4.f})for(float throat:{-6.f,0.f,6.f}) {
         p.vowel_a=vowel;p.throat=throat;p.focus=(vowel==4?1:0.6f);
@@ -127,17 +133,17 @@ void suite(double sr) {
             if(hz<56) {
                 const double db=20*std::log10(std::abs(actual));
                 lowMin=std::min(lowMin,db);lowMax=std::max(lowMax,db);
-                check(std::abs(db)<.55,"low B/E/A within 0.55 dB at full wet, every vowel/throat");
+                check(std::abs(db)<.1,"clean low B/E/A preserved at full wet, every vowel/throat");
             }
         }
     }
     std::printf("  independent response error %.3g; low B/E/A %.3f..%.3f dB\n",error,lowMin,lowMax);
     check(error<5e-5,"complex response agrees with independent bilinear model");
-    // The complete mix/level law and log-frequency midpoint, not only endpoints.
+    // The independent dry/wet gain law and log-frequency midpoint, not only endpoints.
     p={};p.mode=0;p.vowel_b=4;p.position=.5f;p.focus=0;
     for(float mix:{0.f,.5f,1.f})for(float level:{-12.f,0.f,12.f}) {
-        p.mix=mix;p.level=level;
-        check(std::abs(measured(sr,1337,p)-theory(sr,1337,p))<5e-5,"mix, output gain and geometric formant interpolation");
+        p.dry=percentToDb(100*(1-mix));p.wet=percentToDb(100*mix);if(p.wet>-60)p.wet+=(level);
+        check(std::abs(measured(sr,1337,p)-theory(sr,1337,p))<5e-5,"dry/wet gains and geometric formant interpolation");
     }
     auto x=signal(unsigned(sr),sr);
     auto reference=automation(sr,x,false,false,false);
@@ -148,13 +154,13 @@ void suite(double sr) {
     auto silent=automation(sr,std::vector<float>(unsigned(sr)),true,true,false);
     check(std::all_of(silent.begin(),silent.end(),[](float v){return v==0;}),"silent automation injects no signal");
     for(bool host:{false,true}) {
-        p={};p.mix=0;
+        p={};p.protect=0;p.dry=percentToDb(100);p.wet=percentToDb(0);
         const float max=std::numeric_limits<float>::max();
         std::vector<float> extremes={0.f,-0.f,32,-64,max,-max,.125f};
         const auto dry=fixed(sr,p,extremes,host);
         check(std::memcmp(dry.data(),extremes.data(),dry.size()*sizeof(float))==0,"unclipped bit-exact dry including signed zero and float limits");
         for(float mix:{0.f,.5f,1.f}) {
-            p.mix=mix;
+            p.dry=percentToDb(100*(1-mix));p.wet=percentToDb(100*mix);
             auto dirty=x,clean=x;
             dirty[17]=std::numeric_limits<float>::quiet_NaN();
             dirty[73]=std::numeric_limits<float>::infinity();dirty[151]=-dirty[73];
@@ -166,7 +172,7 @@ void suite(double sr) {
     }
     p={};const auto defaults=fixed(sr,p,x);
     p.vowel_a=p.vowel_b=p.mode=p.position=p.depth=p.rate=p.sensitivity=p.release=
-        p.throat=p.focus=p.mix=p.level=std::numeric_limits<float>::quiet_NaN();
+        p.throat=p.focus=p.dry=p.wet=p.protect=std::numeric_limits<float>::quiet_NaN();
     check(defaults==fixed(sr,p,x,true),"all invalid host controls use documented defaults");
     // Defaults for absent optional connections, ignored unknown ports, and reset.
     auto* desc=lv2_descriptor(0);auto h=desc->instantiate(desc,sr,"",nullptr);
@@ -193,8 +199,8 @@ void suite(double sr) {
     double tailPeak=0;for(unsigned i=unsigned(sr*3);i<tail.size();++i)tailPeak=std::max(tailPeak,std::abs(double(tail[i])));
     check(tailPeak<1e-12,"tails decay without denormal noise or self-oscillation");
     // Transitions to dry must eventually reach exact identity, not just approach it.
-    p={};p.mix=0;d.setParams(p);d.process(x.data(),y.data(),unsigned(x.size()));
-    check(std::memcmp(x.data()+x.size()/2,y.data()+y.size()/2,x.size()/2*sizeof(float))==0,"automated zero mix settles to exact dry");
+    p={};p.protect=0;p.dry=percentToDb(100);p.wet=percentToDb(0);d.setParams(p);d.process(x.data(),y.data(),unsigned(x.size()));
+    check(std::memcmp(x.data()+x.size()/2,y.data()+y.size()/2,x.size()/2*sizeof(float))==0,"automated unity dry, zero wet settles to exact dry");
     std::printf("  hostile automation peak %.3f; tail %.3g\n",peak,tailPeak);
     // Output formants are the frequencies of the actual filters.
     for(float t:{0.f,.5f,1.f}) {
@@ -241,7 +247,7 @@ void motion() {
     std::vector<float> dc(unsigned(sr),.2f),y(dc.size());d.process(dc.data(),y.data(),unsigned(dc.size()));
     float last=y.back();double jump=0;
     for(unsigned e=0;e<100;++e) {
-        auto q=automated(e);q.level=0;d.setParams(q);d.process(dc.data(),y.data(),257);
+        auto q=automated(e);d.setParams(q);d.process(dc.data(),y.data(),257);
         for(unsigned i=0;i<257;++i){jump=std::max(jump,std::abs(double(y[i]-last)));last=y[i];}
     }
     check(jump<.001,"automated vowels/modes/focus/mix do not click on DC");

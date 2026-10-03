@@ -338,7 +338,7 @@ public:
                 const float a = warming ? aMatchWarm : aMatch;
                 dryMs += (dry * dry - dryMs) * a;
                 wetMs += (wet * wet - wetMs) * a;
-                ++matchWarm;
+                if (warming) ++matchWarm;
             }
             if (wetMs > 1e-12f && dryMs > 1e-14f) {
                 matchTarget = clampf(std::sqrt(dryMs / wetMs),

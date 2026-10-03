@@ -7,21 +7,23 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 <https://suprduprnatural.github.io/supr-pedals/space#room> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/space> ; rdfs:label "Bass Room" ;
-    lv2:port [ lv2:symbol "mix" ; pset:value 0.15 ],
+    lv2:port [ lv2:symbol "dry" ; pset:value 4.60897842757 ],
     [ lv2:symbol "decay" ; pset:value 0.65 ],
     [ lv2:symbol "tone" ; pset:value 5500 ],
     [ lv2:symbol "duck" ; pset:value 0.5 ],
     [ lv2:symbol "predelay" ; pset:value 8 ],
     [ lv2:symbol "lowcut" ; pset:value 180 ],
     [ lv2:symbol "recovery" ; pset:value 250 ],
-    [ lv2:symbol "send" ; pset:value 1 ] .
+    [ lv2:symbol "send" ; pset:value 1 ],
+    [ lv2:symbol "wet" ; pset:value -10.4575749056 ] .
 
 <https://suprduprnatural.github.io/supr-pedals/space#plate> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/space> ; rdfs:label "Dark Plate" ;
-    lv2:port [ lv2:symbol "mix" ; pset:value 0.23 ],
+    lv2:port [ lv2:symbol "dry" ; pset:value 3.75041441673 ],
     [ lv2:symbol "decay" ; pset:value 2.8 ],
     [ lv2:symbol "tone" ; pset:value 2800 ],
     [ lv2:symbol "duck" ; pset:value 0.7 ],
     [ lv2:symbol "predelay" ; pset:value 28 ],
     [ lv2:symbol "lowcut" ; pset:value 220 ],
     [ lv2:symbol "recovery" ; pset:value 450 ],
-    [ lv2:symbol "send" ; pset:value 1 ] .
+    [ lv2:symbol "send" ; pset:value 1 ],
+    [ lv2:symbol "wet" ; pset:value -6.74484336637 ] .

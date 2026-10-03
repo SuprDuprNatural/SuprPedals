@@ -74,7 +74,7 @@ constexpr size_t kInfoThreaded = kInfoCompute + 2;
 constexpr size_t kInfoFloatCount = kInfoCompute + 3;
 constexpr float  kInfoVersionValue = 1.0f;
 
-enum class MessageType { LoadModel, ModelLoaded, FreeModel, SetQuality };
+enum class MessageType { LoadModel, ModelLoaded, FreeModel };
 
 struct Message {
     MessageType type;
@@ -82,27 +82,20 @@ struct Message {
 
 struct LoadModelMessage : Message {
     int  slot = 0;
+    uint64_t generation = 0;
+    float quality = 1.0f;
     char path[kMaxPathLength] = {0};
 };
 
 // The worker hands ownership of the finished model back through this.
 struct ModelLoadedMessage : Message {
     int       slot  = 0;
+    uint64_t generation = 0;
     NamModel* model = nullptr;
 };
 
 struct FreeModelMessage : Message {
     NamModel* model = nullptr;
-};
-
-// Changing Slim rebuilds the model's network at a different width — a full
-// construction and a large allocation — so it goes to the worker like a load
-// does, never to the audio thread. NAM Core stages the rebuilt model and
-// swaps it in atomically inside its own process(), so calling this while
-// audio is running is exactly what it is designed for.
-struct SetQualityMessage : Message {
-    NamModel* model   = nullptr;
-    float     quality = 0.0f;
 };
 
 } // namespace
@@ -245,8 +238,8 @@ public:
         // where they are not, everything simply waits one block.
         const bool mutable_ = engine_.beginBlock();
         if (mutable_) {
-            applyPendingSwaps();
             readAllPorts(false);
+            applyPendingSwaps();
         }
 
         engine_.process(audioIn_, audioOut_, n_samples);
@@ -306,9 +299,11 @@ public:
             ModelLoadedMessage reply;
             reply.type = MessageType::ModelLoaded;
             reply.slot = load->slot;
+            reply.generation = load->generation;
 
             if (load->path[0] != '\0') {
                 auto model = std::make_unique<NamModel>();
+                model->setQuality(load->quality);
                 std::string error;
                 if (model->load(load->path, maxBlock_, error)) {
                     if (model->info().sampleRate > 0
@@ -332,12 +327,6 @@ public:
             delete free->model;
             break;
         }
-        case MessageType::SetQuality: {
-            const auto* quality = static_cast<const SetQualityMessage*>(message);
-            if (quality->model)
-                quality->model->setQuality(quality->quality);
-            break;
-        }
         case MessageType::ModelLoaded:
             break;
         }
@@ -356,6 +345,10 @@ public:
         const auto* loaded = static_cast<const ModelLoadedMessage*>(message);
         if (loaded->slot < 0 || loaded->slot >= kNumSlots)
             return LV2_WORKER_SUCCESS;
+        if (loaded->generation != loadGeneration_[loaded->slot]) {
+            scheduleFree(loaded->model);
+            return LV2_WORKER_SUCCESS;
+        }
 
         // A second load for the same slot can land before the first has been
         // installed. Push the superseded one straight to the free queue rather
@@ -367,6 +360,7 @@ public:
         // slot gets emptied, either because the user cleared it or because the
         // file would not load. Flag it so applyPendingSwaps does not skip it.
         pendingClear_[loaded->slot] = loaded->model == nullptr;
+        pendingGeneration_[loaded->slot] = loaded->generation;
         hasPendingSwap_ = true;
         return LV2_WORKER_SUCCESS;
     }
@@ -450,10 +444,16 @@ private:
                 sp.outLpHz = ports.outLp.GetValue();
 
             if (force || ports.slim.HasChanged()) {
-                const float quality = ports.slim.GetValue();
-                slotQuality_[i] = quality;
-                if (models_[i])
-                    requestQuality(models_[i], quality);
+                const float value = ports.slim.GetValue();
+                const float quality = std::isfinite(value) ? value : 0.0f;
+                if (quality != slotQuality_[i]) {
+                    slotQuality_[i] = quality;
+                    // Upstream Slim can replace/free inference state in Process
+                    // and race its channel list. Build a separately owned model.
+                    if (!slotPaths_[i].empty()
+                        && (!models_[i] || models_[i]->info().hasQualityScale))
+                        requestLoad(i, slotPaths_[i]);
+                }
             }
         }
 
@@ -498,6 +498,12 @@ private:
         LoadModelMessage message;
         message.type = MessageType::LoadModel;
         message.slot = slot;
+        message.generation = ++loadGeneration_[slot];
+        if (slotPorts_[slot].slim.HasChanged()) {
+            const float value = slotPorts_[slot].slim.GetValue();
+            slotQuality_[slot] = std::isfinite(value) ? value : 0.0f;
+        }
+        message.quality = slotQuality_[slot];
         std::strncpy(message.path, path.c_str(), kMaxPathLength - 1);
         message.path[kMaxPathLength - 1] = '\0';
 
@@ -518,13 +524,15 @@ private:
                 continue;
             pendingModels_[i] = nullptr;
             pendingClear_[i]  = false;
+            if (pendingGeneration_[i] != loadGeneration_[i]) {
+                scheduleFree(incoming);
+                continue;
+            }
 
             NamModel* outgoing = models_[i];
             if (incoming) {
-                // Calibration is pure arithmetic and safe here. Quality is
-                // not, so it goes back out to the worker.
+                // Quality was prepared on the worker; calibration is arithmetic.
                 incoming->setCalibration(calibration_);
-                requestQuality(incoming, slotQuality_[i]);
             }
             models_[i] = incoming;
             engine_.graph().setModel(i, incoming);
@@ -533,20 +541,6 @@ private:
                 scheduleFree(outgoing);
         }
         sendInfo_ = true;
-    }
-
-    // Ordering matters and the worker preserves it: a model is only ever
-    // freed by a message scheduled after any quality change already queued
-    // for it, so the pointer here cannot be dangling by the time it is used.
-    void requestQuality(NamModel* model, float quality)
-    {
-        SetQualityMessage message;
-        message.type    = MessageType::SetQuality;
-        message.model   = model;
-        message.quality = quality;
-        const LV2_Worker_Schedule* schedule = GetLv2WorkerSchedule();
-        if (schedule)
-            schedule->schedule_work(schedule->handle, sizeof(message), &message);
     }
 
     void scheduleFree(NamModel* model)
@@ -701,6 +695,8 @@ private:
     NamModel*   pendingModels_[kNumSlots] = {nullptr, nullptr, nullptr};
     bool        pendingClear_[kNumSlots]  = {false, false, false};
     float       slotQuality_[kNumSlots]   = {0.0f, 0.0f, 0.0f};
+    uint64_t    loadGeneration_[kNumSlots] = {};
+    uint64_t    pendingGeneration_[kNumSlots] = {};
     std::string slotPaths_[kNumSlots];
     bool        hasPendingSwap_ = false;
     bool        sendInfo_       = false;

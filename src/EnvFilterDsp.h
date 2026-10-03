@@ -120,9 +120,12 @@ public:
     // -- audio ---------------------------------------------------------------
     void process(const float* in, float* out, uint32_t n)
     {
+        if (n == 0) return;
         if (snapGains) {
             blend     = blendTarget;
             level     = levelTarget;
+            fcSm = cutoffHz;
+            svf.set(fcSm, 0.5f + res * 9.5f);
             snapGains = false;
         }
         for (uint32_t i = 0; i < n; ++i) {

@@ -1,9 +1,13 @@
 # SuprEcho
 
+Dry and Wet levels use dB relative to a 50/50 blend: **0 dB on both gives
+unity for matching signals**. Both knobs centre at 0 dB, reach +24 dB and
+mute at −∞. The mute endpoint is stored as −60 in LV2. They use the same
+continuous knob and text readout as Vowel's Throat control.
+
 A mono filtered ducking delay for bass. Put it after drive and corrective EQ;
-Space can follow it. Dry stays at unity with zero latency at every Mix setting.
-Mix adds wet rather than crossfading away dry. Leave output headroom when combining
-several wet effects. There is no stereo widening or mono fold-down penalty.
+Space can follow it. Dry Level and Wet Level independently add undelayed
+input and repeats: `out = dryGain*input + wetGain*return`. Both controls independently scale their path without changing sends or feedback. There is no stereo widening or mono fold-down penalty.
 
 ## Controls
 
@@ -11,8 +15,10 @@ several wet effects. There is no stereo widening or mono fold-down penalty.
   eighth (×0.5), or dotted eighth (×0.75). The shortest effective delay is 10 ms.
 - **Feedback:** 0–0.92. Repeat gain is also reduced by the feedback filters;
   this is not an RT60 control.
-- **Mix:** 0–1 additive wet return. Zero returns the input bit-exactly, while
-  the loop continues to run for later wet re-entry.
+- **Dry Level:** −∞ to +24 dB, default +4.0824 dB. Unfiltered, undelayed input gain.
+- **Wet Level:** −∞ to +24 dB, default −7.9588 dB. Independent repeat gain, outside sends,
+  feedback and ducking. Dry +6.0206 dB, Wet −∞ is bit-exact input passthrough.
+  Both muted silence the output while the delay loop continues.
 - **Duck:** clean-input detector attenuates the return, outside the feedback
   loop. Zero disables attenuation. At maximum, a sustained −20 dBFS input
   gives approximately 20 dB wet reduction. Attack is 2 ms.
@@ -22,7 +28,7 @@ several wet effects. There is no stereo widening or mono fold-down penalty.
   40–600 Hz. Default 150 Hz rejects a 31 Hz input by about 28 dB.
 - **Recovery:** detector release time constant, 50–1500 ms.
 - **Send:** switch off to fade new wet input away over 10 ms, leaving repeats
-  audible. Dry always passes. This is the internal trails contract: ordinary
+  audible. The dry level still follows Dry Level. This is the internal trails contract: ordinary
   PiPedal host bypass fades the whole plugin output and cannot preserve tails.
 - **Hold (LV2/MIDI control only):** set to 1 to stop new sends and extend
   existing repeats with 0.995 feedback. Filtering and DC removal remain active.
@@ -48,11 +54,11 @@ Values are shipped starting points. Recorded-DI renders are measured, while
 musical tuning should still be confirmed with a listening test on the target
 rig.
 
-| Preset | Time ms | Feedback | Mix | Duck | Tone Hz | Low cut Hz | Recovery ms | Division |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Thickener | 105 | .18 | .12 | .15 | 5000 | 160 | 200 | Quarter |
-| Ducked dotted eighth | 500 | .45 | .28 | .75 | 3800 | 180 | 300 | Dotted eighth |
-| Dark quarter throw | 650 | .72 | .30 | .35 | 1600 | 240 | 450 | Quarter |
+| Preset | Time ms | Feedback | Dry dB | Wet dB | Duck | Tone Hz | Low cut Hz | Recovery ms | Division |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Thickener | 105 | .18 | 4.910 | -12.396 | .15 | 5000 | 160 | 200 | Quarter |
+| Ducked dotted eighth | 500 | .45 | 3.167 | -5.036 | .75 | 3800 | 180 | 300 | Dotted eighth |
+| Dark quarter throw | 650 | .72 | 2.923 | -4.437 | .35 | 1600 | 240 | 450 | Quarter |
 
 All presets start with Send on and Hold off. For a dub throw, leave Send off,
 briefly switch it on for the note, then off again. A hardware control that sends
@@ -74,7 +80,9 @@ Pi 4 offline benchmark: about 0.54% of one core at 48 kHz/64 frames. This does
 not establish whole-pedalboard headroom. Strict floating point is intentional:
 `-ffast-math` would invalidate finite checks and deterministic processing.
 
-URI ends in `/echo`; indices 0–12 are `in out time feedback mix duck tone lowcut
-recovery division send hold duck_gr`. `duck_gr` remains a negative dB output
-for hosts; the custom face has no duck-reduction meter. Send sits below Duck
-in the right-hand Return column. There are no changes to older ports.
+URI ends in `/echo`; indices 0–13 are `in out time feedback dry duck tone lowcut
+recovery division send hold duck_gr wet`. The former Mix/Level indices are
+retained, with new symbols and percentage units. `duck_gr` remains a negative dB output
+for hosts; the custom face has no duck-reduction meter. The Return column is
+Dry Level, Wet Level, Duck, then a compact Send button. Its label stays inside
+the button, with colour indicating state.

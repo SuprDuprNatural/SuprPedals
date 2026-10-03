@@ -3,3 +3,6 @@ username.txt
 /*.wav
 .DS_Store
 models/
+
+# Local deployment copies and repair archives.
+/lukepi4@pi4*

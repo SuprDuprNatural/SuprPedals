@@ -3718,9 +3718,7 @@ static void testChorus(float fs)
               worst);
     }
 
-    // 2. The headline claim, both halves of it: with the split at 120 Hz a
-    // 45 Hz fundamental neither combs nor detunes, at the most violent
-    // setting the plugin offers.
+    // 2. Full wet contains only the voices above Low, with no clean fundamental.
     ChParams hard;
     hard.mix    = 1.0f;
     hard.depth  = 8.0f;
@@ -3737,17 +3735,10 @@ static void testChorus(float fs)
         p.low      = 120.0f;
         const std::vector<float> out = renderCh(lowTone, fs, p);
         const size_t a = size_t(fs * 0.5f);
-        const double rip = rippleDb(out, fs, 45.0f, a, n);
-        const double dev = pitchDevCents(out, fs, 45.0f, a, n);
-        check(rip < 0.6 && dev < 3.0,
-              "chorus: 45 Hz through a 120 Hz split — %.2f dB ripple, "
-              "%.2f cents detune", rip, dev);
-
-        // and it is still there at full level: Mix must not thin the bottom
         const double lvl = 20.0
             * std::log10(goertzel(out, a, n, fs, 45.0f)
                          / std::max(goertzel(lowTone, a, n, fs, 45.0f), 1e-12));
-        check(std::fabs(lvl) < 0.5,
+        check(lvl < -30,
               "chorus: 45 Hz level at Mix 1 is %+.2f dB", lvl);
     }
 

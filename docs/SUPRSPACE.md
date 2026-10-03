@@ -1,12 +1,22 @@
 # SuprSpace
 
+Dry and Wet levels use dB relative to a 50/50 blend: **0 dB on both gives
+unity for matching signals**. Both knobs centre at 0 dB, reach +24 dB and
+mute at −∞. The mute endpoint is stored as −60 in LV2. They use the same
+continuous knob and text readout as Vowel's Throat control.
+
 A mono filtered, ducked room/plate-style ambience for melodic bass. Place it
-late in the chain, normally after drive and Echo. Dry stays at unity and has
-zero latency. Mix adds wet; leave headroom. Mono output needs no stereo fold-down.
+late in the chain, normally after drive and Echo. Independent Dry Level and
+Wet Level add undelayed input and ambience. Mono output needs no stereo fold-down.
 
 ## Controls and presets
 
-**Mix** adds 0–1 wet return. **Decay** sets nominal broadband RT60 from 0.2–8 s.
+**Dry Level** and **Wet Level** range from −∞ to +24 dB.
+Defaults are +4.2969 dB dry and −8.8739 dB wet. Output is `dryGain*input + wetGain*return`;
+Dry +6.0206 dB, Wet −∞ is bit-exact passthrough, and both muted silence the output.
+Wet Level never changes dry or the feedback network.
+The Return column is Dry Level, Wet Level, Duck and a compact Send button with
+its label inside and colour indicating state. **Decay** sets nominal broadband RT60 from 0.2–8 s.
 **Tone** sets loop damping at 800–12000 Hz; darker settings shorten the measured
 high-frequency decay. **Duck** attenuates the return from a clean-input detector,
 with 2 ms attack and adjustable **Recovery** (50–1500 ms). Duck never alters the
@@ -15,10 +25,10 @@ poles. **Predelay** is 0–150 ms; a base sample plus diffusion/network delays
 remain when the knob is at zero. **Send** off fades excitation over 20 ms and
 lets the tail decay. Host bypass cannot promise audible trails.
 
-| Preset | Mix | Decay s | Tone Hz | Duck | Predelay ms | Low cut Hz | Recovery ms | Send |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Bass Room | .15 | .65 | 5500 | .5 | 8 | 180 | 250 | On |
-| Dark Plate | .23 | 2.8 | 2800 | .7 | 28 | 220 | 450 | On |
+| Preset | Dry dB | Wet dB | Decay s | Tone Hz | Duck | Predelay ms | Low cut Hz | Recovery ms | Send |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Bass Room | 4.609 | -10.458 | .65 | 5500 | .5 | 8 | 180 | 250 | On |
+| Dark Plate | 3.750 | -6.745 | 2.8 | 2800 | .7 | 28 | 220 | 450 | On |
 
 These presets use one network: the plate setting is a darker, longer diffuse
 ambience, not a physical plate simulation or a separate algorithm. Measured
@@ -53,7 +63,7 @@ between equal energy windows separated by 1.4 s, including damping. Maximum
 runaway tails or accumulating DC. See `test/test_space.cpp` for reproducible
 measurements and the actual-wrapper, in-place and block-partition gates.
 
-URI ends in `/space`; indices 0–10 are `in out mix decay tone duck predelay lowcut
-recovery send duck_gr`. Only the final port is an output control. The custom
+URI ends in `/space`; indices 0–11 are `in out dry decay tone duck predelay lowcut
+recovery send duck_gr wet`. Port 10 is the ducking output control. The custom
 face has no duck-reduction meter; Send sits below Duck in the right-hand
-Return column, matching Echo. Existing port contracts are unchanged.
+Return column, matching Echo. Dry/Wet replace the old Mix/Level symbols at their existing indices.

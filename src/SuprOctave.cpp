@@ -1,4 +1,4 @@
-// PiOctave.cpp — LV2 wrapper around OctaverDsp.
+// SuprOctave.cpp — LV2 wrapper around OctaverDsp.
 #include "OctaverDsp.h"
 
 #include <lv2/core/lv2.h>
@@ -18,6 +18,8 @@ enum PortIndex : uint32_t {
     PORT_OCT1   = 3,
     PORT_TONE   = 4,
     PORT_GATE   = 5,
+    PORT_DRIVE  = 6,
+    PORT_HIGHPASS = 7,
 };
 
 struct SuprOctave {
@@ -29,6 +31,8 @@ struct SuprOctave {
     const float* oct1   = nullptr;
     const float* tone   = nullptr;
     const float* gate   = nullptr;
+    const float* drive  = nullptr;
+    const float* highpass = nullptr;
 };
 
 LV2_Handle instantiate(const LV2_Descriptor*, double rate, const char*,
@@ -51,6 +55,8 @@ void connect_port(LV2_Handle instance, uint32_t port, void* data)
     case PORT_OCT1:   self->oct1   = static_cast<const float*>(data); break;
     case PORT_TONE:   self->tone   = static_cast<const float*>(data); break;
     case PORT_GATE:   self->gate   = static_cast<const float*>(data); break;
+    case PORT_DRIVE:  self->drive  = static_cast<const float*>(data); break;
+    case PORT_HIGHPASS: self->highpass = static_cast<const float*>(data); break;
     }
 }
 
@@ -73,6 +79,10 @@ void run(LV2_Handle instance, uint32_t nSamples)
         self->dsp.setTone(*self->tone);
     if (self->gate)
         self->dsp.setGateDb(*self->gate);
+    if (self->drive)
+        self->dsp.setDrive(*self->drive);
+    if (self->highpass)
+        self->dsp.setHighpass(*self->highpass);
 
     self->dsp.process(self->in, self->out, nSamples);
 }

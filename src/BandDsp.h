@@ -427,7 +427,8 @@ private:
         // once — so it takes effect immediately, and the second stage's
         // filters are cleared so re-engaging never lands on a cold state
         // holding whatever was in it three minutes ago.
-        if (bandsT != bands) {
+        const bool topologyChanged = bandsT != bands;
+        if (topologyChanged) {
             bands = bandsT;
             resetStage2();
         }
@@ -446,9 +447,9 @@ private:
             band[b].comp += (band[b].compT - band[b].comp) * a;
             if (std::fabs(band[b].drive - d0) > 1e-4f)
                 band[b].updateDrive();
-            if (moved || std::fabs(band[b].comp - c0) > 1e-4f)
+            if (topologyChanged || moved || std::fabs(band[b].comp - c0) > 1e-4f)
                 band[b].updateComp(bandLo(b), bandHi(b), fsOs);
-            if (moved)
+            if (topologyChanged || moved)
                 band[b].updateHp(bandLo(b), fsOs, b != LOW);
         }
 

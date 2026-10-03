@@ -1,6 +1,6 @@
 // ChorusDsp.h — SuprChorus: a chorus that leaves the fundamental alone.
 //
-//                    ┌─► LR4 low  ────────────────────────────────────┐
+//                    ┌─► LR4 low ─► dry × (1-mix) ────────────────────┐
 //   in ─► crossover ─┤                                                ├─► out
 //                    └─► LR4 high ─┬─► dry × (1-mix) ─────────────────┤
 //                                  └─► N modulated taps ─► tone ─► mix┘
@@ -9,7 +9,8 @@
 // with everything else, and a wobbling low E reads as out of tune rather than
 // as an effect. Worse, the dry/wet sum combs hardest exactly where the bass
 // lives. The fix is not subtlety — it is to keep the low band out of the
-// modulator entirely. Below the Low knob nothing is delayed and nothing moves.
+// modulator entirely. Low cuts bass from the wet voices; the dry crossover
+// bands both fade out as Mix reaches one.
 //
 // WHY A REAL CROSSOVER AND NOT A COMPLEMENTARY SPLIT. The cheap way to split
 // is `low = LP(x); high = x - low`, which reconstructs bit-exactly and lets
@@ -224,6 +225,7 @@ public:
             delay.write(high);
 
             mix += (mixTarget - mix) * kSm;
+            if (std::fabs(mixTarget - mix) < 1e-4f) mix = mixTarget;
             swing += (swingTarget - swing) * kSm;
 
             float wet = 0.0f;
@@ -243,9 +245,8 @@ public:
             if (phase >= 1.0f)
                 phase -= 1.0f;
 
-            // The low band is in the dry sum at full level whatever Mix does;
-            // only the high band crossfades.
-            out[i] = low + (1.0f - mix) * high + mix * wet;
+            // Crossfade the entire dry signal, including the low band.
+            out[i] = (1.0f - mix) * (low + high) + mix * wet;
         }
     }
 

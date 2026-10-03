@@ -6,14 +6,14 @@ namespace {
 enum PortIndex : uint32_t {
     PORT_IN=0, PORT_OUT=1, PORT_VOWEL_A=2, PORT_VOWEL_B=3, PORT_MODE=4,
     PORT_POSITION=5, PORT_DEPTH=6, PORT_RATE=7, PORT_SENSITIVITY=8,
-    PORT_RELEASE=9, PORT_THROAT=10, PORT_FOCUS=11, PORT_MIX=12, PORT_LEVEL=13,
-    PORT_MORPH=14, PORT_F1=15, PORT_F2=16, PORT_F3=17
+    PORT_RELEASE=9, PORT_THROAT=10, PORT_FOCUS=11, PORT_DRY=12, PORT_WET=13,
+    PORT_MORPH=14, PORT_F1=15, PORT_F2=16, PORT_F3=17, PORT_PROTECT=18
 };
 struct Effect {
     supr::VowelDsp dsp;
     const float* in=nullptr;
     float* out=nullptr;
-    const float* controls[12]{};
+    const float* controls[13]{};
     float* meters[4]{};
 };
 LV2_Handle instantiate(const LV2_Descriptor*,double rate,const char*,const LV2_Feature* const*) {
@@ -25,14 +25,15 @@ void connect(LV2_Handle h,uint32_t port,void* data) {
     auto* s=static_cast<Effect*>(h);
     if(port==PORT_IN)s->in=static_cast<const float*>(data);
     else if(port==PORT_OUT)s->out=static_cast<float*>(data);
-    else if(port>=PORT_VOWEL_A&&port<=PORT_LEVEL)s->controls[port-PORT_VOWEL_A]=static_cast<const float*>(data);
+    else if(port>=PORT_VOWEL_A&&port<=PORT_WET)s->controls[port-PORT_VOWEL_A]=static_cast<const float*>(data);
     else if(port>=PORT_MORPH&&port<=PORT_F3)s->meters[port-PORT_MORPH]=static_cast<float*>(data);
+    else if(port==PORT_PROTECT)s->controls[12]=static_cast<const float*>(data);
 }
 void params(Effect* s) {
     supr::VowelDsp::Params p;
     float* fields[]={&p.vowel_a,&p.vowel_b,&p.mode,&p.position,&p.depth,&p.rate,
-        &p.sensitivity,&p.release,&p.throat,&p.focus,&p.mix,&p.level};
-    for(unsigned i=0;i<12;++i)if(s->controls[i])*fields[i]=*s->controls[i];
+        &p.sensitivity,&p.release,&p.throat,&p.focus,&p.dry,&p.wet,&p.protect};
+    for(unsigned i=0;i<13;++i)if(s->controls[i])*fields[i]=*s->controls[i];
     s->dsp.setParams(p);
 }
 void activate(LV2_Handle h) { auto* s=static_cast<Effect*>(h);params(s);s->dsp.reset(); }

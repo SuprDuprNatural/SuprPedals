@@ -22,7 +22,7 @@ custom faces and implemented OLED path.
 ## Build and test
 
 ```sh
-make            # all 17 Makefile bundles
+make            # all 18 Makefile bundles
 make test       # the offline suite - must be 0 failures
 make demo       # demo WAVs to build/demo/
 make tools      # build/fuzz_probe, the measurement rig
@@ -69,7 +69,7 @@ saved presets to obtain a backup or leave a temporary test board loaded.
 Stage matching binaries/TTL/UI and use atomic replacement of running files.
 Do not use an uninspected old `~/supr-deploy.sh`: historical versions shipped
 only one JS file and installed stale plugins without rebuilding NAM/host.
-After restart, hard-refresh the browser. Verify service active, **18** unique
+After restart, hard-refresh the browser. Verify service active, **19** unique
 Supr URIs, actual installed metadata and source-to-installed hashes. A count
 alone cannot detect a stale build. Ignore shutdown-only `Bad file descriptor`
 web-server messages; investigate continuing errors and sustained xrun deltas.

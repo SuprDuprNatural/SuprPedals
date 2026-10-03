@@ -244,11 +244,14 @@ public:
     // -- audio ---------------------------------------------------------------
     void process(const float* in, float* out, uint32_t n)
     {
+        if (n == 0) return;
         if (snapGains) {
             directGain = directTarget;
             oct1Gain   = oct1Target;
             osc1Gain   = osc1Target;
             osc2Gain   = osc2Target;
+            fcSm = cutoffHz;
+            svf.set(fcSm, 0.5f + res * 9.5f);
             snapGains  = false;
         }
         for (uint32_t i = 0; i < n; ++i) {
@@ -273,9 +276,11 @@ public:
 
             // --- pitch (glide), then each oscillator's own octave ---
             f0s += (trk.f0() - f0s) * kF0;
-            const float dt1 = clampf(f0s * oct1Mult / fs, 1e-4f, 0.02f);
+            // Bound against Nyquist, not a fixed fraction that retunes valid
+            // notes at different host rates or octave settings.
+            const float dt1 = clampf(f0s * oct1Mult / fs, 0.0f, 0.45f);
             const float dt2 =
-                clampf(f0s * oct2Mult * detuneRatio / fs, 1e-4f, 0.02f);
+                clampf(f0s * oct2Mult * detuneRatio / fs, 0.0f, 0.45f);
             osc1Gain += (osc1Target - osc1Gain) * kGain;
             osc2Gain += (osc2Target - osc2Gain) * kGain;
             // Halved so two oscillators at full level land where one used to,

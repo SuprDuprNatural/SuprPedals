@@ -9,6 +9,8 @@
 #include <cstring>
 #include <limits>
 #include <vector>
+
+static float percentToDb(double percent) { return percent>0?float(20*std::log10(percent/50)):-60.f; }
 using Dsp=supr::PhaseDsp;
 constexpr double pi=3.14159265358979323846;
 int failures=0;
@@ -33,26 +35,28 @@ std::complex<double> theory(double sr,double hz,Dsp::Params p) {
     const double g=std::tan(pi*p.centre/sr),a=(g-1)/(g+1);
     const auto ap=std::pow((a+z)/(1.+a*z),4);
     const auto wet=(1-std::abs(double(p.feedback)))*ap/(1.-double(p.feedback)*z*ap);
-    const double h=1/(1+std::tan(pi*250/sr));
-    const auto hp=h*(1.-z)/(1.-(2*h-1)*z);
-    return 1.+double(p.mix)*(wet-1.)*(p.protect?hp*hp:std::complex<double>(1));
+    const std::complex<double> s(0,std::tan(pi*hz/sr)/std::tan(pi*250/sr));
+    const auto denominator=std::pow(s*s+std::sqrt(2.)*s+1.,2);
+    const auto l=1./denominator, h=std::pow(s,4)/denominator;
+    const auto mix=supr::timespace::returnGain(p.dry)+supr::timespace::returnGain(p.wet)*wet;
+    return p.protect?l+h*mix:mix;
 }
 Dsp::Params automated(unsigned event) {
     Dsp::Params p;
     p.rate=event%2?5:.03f;p.depth=event%3?1:0;p.centre=event%2?2500:100;
-    p.feedback=event%2?.75f:-.75f;p.mix=event%3?1:0;p.protect=float(event%2);
+    p.feedback=event%2?.75f:-.75f;p.dry=percentToDb(100*(1-(event%3?1:0)));p.wet=percentToDb(100*(event%3?1:0));p.protect=float(event%2);
     p.mode=float((event/2)%2);p.sensitivity=event%2?24:-24;return p;
 }
 std::vector<float> render(double sr,const std::vector<float>& input,bool wrapper,bool split,bool inplace) {
     std::vector<float> output(input.size());auto x=input;
     const auto* desc=lv2_descriptor(0);LV2_Handle h=nullptr;
-    Dsp d;d.init(sr);float controls[8]{};
+    Dsp d;d.init(sr);float controls[9]{};
     auto set=[&](Dsp::Params p){
-        d.setParams(p);const float v[]={p.rate,p.depth,p.centre,p.feedback,p.mix,p.protect,p.mode,p.sensitivity};
-        std::copy(v,v+8,controls);
+        d.setParams(p);const float v[]={p.rate,p.depth,p.centre,p.feedback,p.dry,p.protect,p.mode,p.sensitivity,p.wet};
+        std::copy(v,v+9,controls);
     };
     set(automated(0));d.reset();
-    if(wrapper){const LV2_Feature* features[]={nullptr};h=desc->instantiate(desc,sr,"",features);check(h!=nullptr,"LV2 instantiate");for(unsigned i=0;i<8;++i)desc->connect_port(h,i+2,controls+i);desc->activate(h);desc->run(h,0);}
+    if(wrapper){const LV2_Feature* features[]={nullptr};h=desc->instantiate(desc,sr,"",features);check(h!=nullptr,"LV2 instantiate");for(unsigned i=0;i<9;++i)desc->connect_port(h,i+2,controls+i);desc->activate(h);desc->run(h,0);}
     unsigned pos=0,event=0;
     while(pos<input.size()){
         set(automated(event));const unsigned end=std::min(unsigned(input.size()),pos+997);
@@ -70,8 +74,8 @@ std::vector<float> fixedRender(double sr,Dsp::Params p,std::vector<float> x,bool
     if(wrapper) {
         const auto* desc=lv2_descriptor(0);const LV2_Feature* features[]={nullptr};
         auto h=desc->instantiate(desc,sr,"",features);
-        float controls[]={p.rate,p.depth,p.centre,p.feedback,p.mix,p.protect,p.mode,p.sensitivity};
-        for(unsigned i=0;i<8;++i)desc->connect_port(h,i+2,controls+i);
+        float controls[]={p.rate,p.depth,p.centre,p.feedback,p.dry,p.protect,p.mode,p.sensitivity,p.wet};
+        for(unsigned i=0;i<9;++i)desc->connect_port(h,i+2,controls+i);
         desc->activate(h);
         for(unsigned i=0;i<x.size();i+=73) {
             desc->connect_port(h,0,x.data()+i);desc->connect_port(h,1,x.data()+i);
@@ -86,19 +90,21 @@ std::vector<float> fixedRender(double sr,Dsp::Params p,std::vector<float> x,bool
 void inputAndReinit(double sr) {
     for(bool wrapper:{false,true}) {
         for(float protect:{0.f,1.f}) {
-            Dsp::Params p;p.mix=0;p.protect=protect;
+            Dsp::Params p;p.dry=percentToDb(100);p.wet=percentToDb(0);p.protect=protect;
             const float max=std::numeric_limits<float>::max();
             const std::vector<float> dry={32,-64,17,-17,0.f,-0.f,max,-max,.125f};
             const auto y=fixedRender(sr,p,dry,wrapper);
-            check(std::memcmp(dry.data(),y.data(),dry.size()*sizeof(float))==0,"unclipped finite dry including float limits and signed zero");
+            check(protect ? std::all_of(y.begin(),y.end(),[](float v){return std::isfinite(v);}) :
+                std::memcmp(dry.data(),y.data(),dry.size()*sizeof(float))==0,
+                "finite clean crossover; protection-off dry is bit-exact incl float limits and signed zero");
         }
         for(float mix:{0.f,.5f,1.f})for(float level:{32.f,-64.f}) {
-            Dsp::Params p;p.mix=mix;p.protect=1;p.depth=0;p.feedback=.75f;
+            Dsp::Params p;p.dry=percentToDb(100*(1-mix));p.wet=percentToDb(100*mix);p.protect=1;p.depth=0;p.feedback=.75f;
             auto y=fixedRender(sr,p,std::vector<float>(unsigned(sr),level),wrapper);
-            check(std::all_of(y.begin()+unsigned(sr/2),y.end(),[&](float v){return v==level;}),"protected settled DC above 16 remains exact");
+            check(std::all_of(y.begin()+unsigned(sr/2),y.end(),[&](float v){return v==level;}),"protected clean DC remains exact above nominal audio range");
         }
         for(float mix:{0.f,1.f})for(float protect:{0.f,1.f}) {
-            Dsp::Params p;p.mix=mix;p.protect=protect;p.mode=1;p.feedback=-.75f;
+            Dsp::Params p;p.dry=percentToDb(100*(1-mix));p.wet=percentToDb(100*mix);p.protect=protect;p.mode=1;p.feedback=-.75f;
             auto dirty=signal(unsigned(sr),sr),sanitized=dirty;
             dirty[17]=std::numeric_limits<float>::quiet_NaN();
             dirty[73]=std::numeric_limits<float>::infinity();dirty[151]=-dirty[73];
@@ -140,8 +146,8 @@ void suite(double sr) {
         }
     }
     std::printf("  complex response error %.3g; protected low B %.3f..%.3f dB\n",maxError,lowMin,lowMax);
-    check(maxError<2e-6,"complex response incl polarity, mix, feedback delay and complementary protection");
-    p={};p.depth=0;p.feedback=0;p.protect=0;p.mix=1;
+    check(maxError<2e-6,"complex response incl polarity, mix, feedback delay and wet protection");
+    p={};p.depth=0;p.feedback=0;p.protect=0;p.dry=percentToDb(0);p.wet=percentToDb(100);
     for(double f:{30.8677,100.,700.,2500.,10000.})check(std::abs(std::abs(response(sr,f,p))-1)<1e-6,"100% wet unity allpass magnitude");
     // Locate both LFO sweep extremes acoustically; this also verifies rate and
     // +/- two-octave depth, without exposing detector or oscillator test ports.
@@ -163,15 +169,15 @@ void suite(double sr) {
         const auto y=render(sr,x,wrapper,split,inplace);
         check(std::memcmp(reference.data(),y.data(),y.size()*sizeof(float))==0,"exact automated DSP/wrapper/block/in-place equivalence");
     }
-    Dsp d;d.init(sr);p={};p.mix=0;d.setParams(p);d.reset();std::vector<float> y(x.size());d.process(x.data(),y.data(),unsigned(x.size()));
-    check(x==y,"zero mix exact dry identity");
+    Dsp d;d.init(sr);p={};p.protect=0;p.dry=percentToDb(100);p.wet=percentToDb(0);d.setParams(p);d.reset();std::vector<float> y(x.size());d.process(x.data(),y.data(),unsigned(x.size()));
+    check(x==y,"unity dry, zero wet exact dry identity");
     // Silent automation must not inject transients; reset must restore all state.
     std::vector<float> zero(static_cast<unsigned>(sr));const auto silence=render(sr,zero,true,true,false);
     check(std::all_of(silence.begin(),silence.end(),[](float v){return v==0;}),"silent automation exact zero");
     p={};d.setParams(p);d.reset();d.process(x.data(),y.data(),unsigned(x.size()));auto first=y;d.reset();d.process(x.data(),y.data(),unsigned(x.size()));check(first==y,"deterministic reset");
     // Hard bounds, rapid frequency/mode/feedback changes and long tail decay.
     double peak=0;
-    for(unsigned e=0;e<400;++e){p=automated(e);p.mix=1;d.setParams(p);auto loud=signal(257,sr);for(auto& v:loud)v*=16;d.process(loud.data(),y.data(),257);for(unsigned i=0;i<257;++i){check(std::isfinite(y[i]),"finite stress output");peak=std::max(peak,std::abs(double(y[i])));}}
+    for(unsigned e=0;e<400;++e){p=automated(e);p.dry=percentToDb(0);p.wet=percentToDb(100);d.setParams(p);auto loud=signal(257,sr);for(auto& v:loud)v*=16;d.process(loud.data(),y.data(),257);for(unsigned i=0;i<257;++i){check(std::isfinite(y[i]),"finite stress output");peak=std::max(peak,std::abs(double(y[i])));}}
     check(peak<32,"bounded full-range automated feedback");
     std::vector<float> tail(unsigned(sr*4));d.process(tail.data(),tail.data(),unsigned(tail.size()));double tailPeak=0;for(unsigned i=unsigned(sr*3);i<tail.size();++i)tailPeak=std::max(tailPeak,std::abs(double(tail[i])));check(tailPeak<1e-12,"feedback decays to silence");
     // Parameter steps on DC isolate control discontinuities from input edges.
@@ -197,7 +203,7 @@ void suite(double sr) {
     Dsp impulse;impulse.init(sr);p={};p.depth=0;p.feedback=0;p.protect=0;impulse.setParams(p);impulse.reset();
     float unit=1,instant=0;impulse.process(&unit,&instant,1);check(instant>.5f,"zero transport latency: first sample responds");
     // Invalid controls are sanitized identically to defaults, with no NaN state.
-    p={};p.rate=p.depth=p.centre=p.feedback=p.mix=p.protect=p.mode=p.sensitivity=std::numeric_limits<float>::quiet_NaN();d.setParams(p);d.reset();d.process(x.data(),y.data(),unsigned(x.size()));check(first==y,"nonfinite controls use defaults");
+    p={};p.rate=p.depth=p.centre=p.feedback=p.dry=p.protect=p.mode=p.sensitivity=std::numeric_limits<float>::quiet_NaN();d.setParams(p);d.reset();d.process(x.data(),y.data(),unsigned(x.size()));check(first==y,"nonfinite controls use defaults");
     const auto start=std::chrono::steady_clock::now();
     for(unsigned k=0;k<30;++k)for(unsigned i=0;i<x.size();i+=64)d.process(x.data()+i,y.data()+i,std::min(64u,unsigned(x.size())-i));
     const double elapsed=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();

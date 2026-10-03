@@ -8,7 +8,7 @@ namespace supr {
 // Two Schroeder allpasses diffuse the send. Decay changes gain, never lengths.
 class SpaceDsp {
 public:
-    struct Params { float mix=.18f,decay=1.4f,tone=4500,duck=.5f,predelay=15,lowcut=180,recovery=350,send=1; };
+    struct Params { float dry=4.29687696095f,decay=1.4f,tone=4500,duck=.5f,predelay=15,lowcut=180,recovery=350,send=1,wet=-8.87394998465f; };
 private:
     struct Line {
         std::vector<double> data; size_t head=0;
@@ -27,7 +27,7 @@ private:
     timespace::TapDelay pre;
     timespace::Highpass hp1,hp2;
     timespace::Duck detector;
-    timespace::Smooth mix,duck,send,lpPole,hpPole,releasePole;
+    timespace::Smooth dryLevel,duck,send,lpPole,hpPole,releasePole,wetLevel;
     static bool prime(size_t n) { for(size_t i=2;i*i<=n;++i)if(n%i==0)return false;return true; }
 public:
     void init(double sampleRate) {
@@ -39,9 +39,10 @@ public:
     }
     void setParams(Params v) {
         using timespace::finite;
-        p.mix=finite(v.mix,.18,0,1);p.decay=finite(v.decay,1.4,.2,8);p.tone=finite(v.tone,4500,800,12000);
+        p.dry=finite(v.dry,4.29687696095f,-60,24);p.decay=finite(v.decay,1.4,.2,8);p.tone=finite(v.tone,4500,800,12000);
         p.duck=finite(v.duck,.5,0,1);p.predelay=finite(v.predelay,15,0,150);p.lowcut=finite(v.lowcut,180,40,600);
         p.recovery=finite(v.recovery,350,50,1500);p.send=finite(v.send,1,0,1);
+        p.wet=finite(v.wet,-8.87394998465f,-60,24);
         // One base sample is intentional even with the predelay control at zero.
         pre.setTime(1+sr*.001*p.predelay);
     }
@@ -49,13 +50,15 @@ public:
         for(auto& l:lines) l.reset();
         for(auto& l:diffusion) l.reset();
         damping={};hp1={};hp2={};detector={};gain=1;
-        pre.reset(1+sr*.001*p.predelay);mix.value=p.mix;duck.value=p.duck;send.value=p.send;
+        pre.reset(1+sr*.001*p.predelay);dryLevel.value=timespace::returnGain(p.dry);duck.value=p.duck;send.value=p.send;
+        wetLevel.value=timespace::returnGain(p.wet);
         lpPole.value=timespace::pole(p.tone,sr);hpPole.value=timespace::pole(p.lowcut,sr);
         releasePole.value=std::exp(-1/(p.recovery*.001*sr));
         for(size_t j=0;j<8;++j)loopGain[j].value=std::pow(10.,-3.*lines[j].data.size()/(sr*p.decay));
     }
     void process(const float* in,float* out,uint32_t n) {
         using namespace timespace;
+        const double dryTarget=returnGain(p.dry), wetTarget=returnGain(p.wet);
         constexpr double norm=.3535533905932737622; // 1/sqrt(8)
         std::array<double,8> targets;
         for(size_t j=0;j<8;++j)targets[j]=std::pow(10.,-3.*lines[j].data.size()/(sr*p.decay));
@@ -74,8 +77,11 @@ public:
                 lines[j].write(std::clamp(state,-16.0,16.0));
             }
             gain=detector.tick(x,duck.tick(p.duck,smoothing),attack,releasePole.tick(relTarget,smoothing));
-            const double m=mix.tick(p.mix,smoothing);
-            out[i]=p.mix==0?(std::isfinite(dry)?dry:0.f):float((std::isfinite(dry)?double(dry):0.0)+m*wet*gain);
+            const double d=dryLevel.tick(dryTarget,smoothing), w=wetLevel.tick(wetTarget,smoothing);
+            const float finiteDry=std::isfinite(dry)?dry:0.f;
+            const double result=d*finiteDry+w*wet*gain;
+            out[i]=d==1&&w==0 ? finiteDry : float(std::clamp(result,
+                -double(std::numeric_limits<float>::max()),double(std::numeric_limits<float>::max())));
         }
     }
     double duckGain() const {return gain;}

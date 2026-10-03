@@ -146,6 +146,17 @@ public:
             if (samplesSincePitch_ < uint64_t(fs_ * 4.0f))
                 ++samplesSincePitch_;
 
+            // Expire on the sample clock, including when reused one sample at
+            // a time by Clack. Host block size must not change reacquisition.
+            if (samplesSincePitch_ > uint64_t(fs_ * 0.28f)) {
+                hasPitch_ = false;
+                note_ = -1;
+                frequency_ = 0.0f;
+                cents_ = 0.0f;
+                confidence_ = 0.0f;
+                strobeRate_ = 0.0f;
+            }
+
             if (hasPitch_) {
                 strobePhase_ += strobeRate_ / fs_;
                 if (strobePhase_ >= 1.0f)
@@ -156,14 +167,6 @@ public:
         }
 
         levelDb_ = 10.0f * std::log10(std::max(levelSquare_, 1.0e-12f));
-        if (samplesSincePitch_ > uint64_t(fs_ * 0.28f)) {
-            hasPitch_ = false;
-            note_ = -1;
-            frequency_ = 0.0f;
-            cents_ = 0.0f;
-            confidence_ *= 0.85f;
-            strobeRate_ = 0.0f;
-        }
     }
 
     float frequency() const { return frequency_; }

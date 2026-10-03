@@ -29,7 +29,7 @@ BUNDLE14 = suprecho.lv2
 BUNDLE15 = suprspace.lv2
 
 CXX      ?= g++
-CXXFLAGS += -O3 -ffast-math -Wall -std=c++17
+CXXFLAGS += -O3 -Wall -std=c++17 -ffp-contract=off
 
 # Stateful DSP must produce identical samples across host block lengths.
 # GCC fast-math/FMA specialization can change the recurrence (including
@@ -44,59 +44,59 @@ endif
 
 all: build/suprphase.so build/suprecho.so build/suprspace.so build/suproctave.so build/suproctaveplus.so build/suprenvfilter.so build/suprcompressor.so build/suprvu.so build/suprtuner.so build/suprsans.so build/suprchorus.so build/suprband.so build/suprfuzz.so build/suprtransient.so build/suprclack.so build/suprforge.so
 
-build/suprforge.so: Makefile src/SuprForge.cpp src/ForgeDsp.h src/SansDsp.h src/OctaverDsp.h
+build/suprforge.so: Makefile src/SuprForge.cpp src/ForgeDsp.h src/SansDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprForge.cpp
 
-build/test_forge: Makefile test/test_forge.cpp src/SuprForge.cpp src/ForgeDsp.h src/SansDsp.h src/OctaverDsp.h
+build/test_forge: Makefile test/test_forge.cpp src/SuprForge.cpp src/ForgeDsp.h src/SansDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_forge.cpp src/SuprForge.cpp
 
-build/suproctave.so: Makefile src/SuprOctave.cpp src/OctaverDsp.h
+build/suproctave.so: Makefile src/SuprOctave.cpp src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprOctave.cpp
 
-build/suproctaveplus.so: Makefile src/SuprOctavePlus.cpp src/OctaverPlusDsp.h src/OctaverDsp.h
+build/suproctaveplus.so: Makefile src/SuprOctavePlus.cpp src/OctaverPlusDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprOctavePlus.cpp
 
-build/suprenvfilter.so: Makefile src/SuprEnvFilter.cpp src/EnvFilterDsp.h src/OctaverDsp.h
+build/suprenvfilter.so: Makefile src/SuprEnvFilter.cpp src/EnvFilterDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprEnvFilter.cpp
 
-build/suprcompressor.so: Makefile src/SuprCompressor.cpp src/CompressorDsp.h src/OctaverDsp.h
+build/suprcompressor.so: Makefile src/SuprCompressor.cpp src/CompressorDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprCompressor.cpp
 
-build/suprvu.so: Makefile src/SuprVu.cpp src/VuMeterDsp.h src/OctaverDsp.h
+build/suprvu.so: Makefile src/SuprVu.cpp src/VuMeterDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprVu.cpp
 
-build/suprtuner.so: Makefile src/SuprTuner.cpp src/TunerDsp.h src/OctaverDsp.h
+build/suprtuner.so: Makefile src/SuprTuner.cpp src/TunerDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprTuner.cpp
 
-build/suprsans.so: Makefile src/SuprSans.cpp src/SansDsp.h src/OctaverDsp.h
+build/suprsans.so: Makefile src/SuprSans.cpp src/SansDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprSans.cpp
 
-build/suprtransient.so: Makefile src/SuprTransient.cpp src/TransientDsp.h src/OctaverDsp.h
+build/suprtransient.so: Makefile src/SuprTransient.cpp src/TransientDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprTransient.cpp
 
-build/suprclack.so: Makefile src/SuprClack.cpp src/ClackDsp.h src/TunerDsp.h src/OctaverDsp.h
+build/suprclack.so: Makefile src/SuprClack.cpp src/ClackDsp.h src/TunerDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprClack.cpp
 
-build/suprband.so: Makefile src/SuprBand.cpp src/BandDsp.h src/SansDsp.h src/OctaverDsp.h
+build/suprband.so: Makefile src/SuprBand.cpp src/BandDsp.h src/SansDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprBand.cpp
 
-build/suprfuzz.so: Makefile src/SuprFuzz.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPlusDsp.h src/OctaverDsp.h
+build/suprfuzz.so: Makefile src/SuprFuzz.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPlusDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprFuzz.cpp
 
-build/suprchorus.so: Makefile src/SuprChorus.cpp src/ChorusDsp.h src/OctaverDsp.h
+build/suprchorus.so: Makefile src/SuprChorus.cpp src/ChorusDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprChorus.cpp
 
@@ -104,14 +104,14 @@ build/test_octaver: Makefile test/test_octaver.cpp $(wildcard src/*.h)
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) -Isrc -o $@ test/test_octaver.cpp
 
-build/test_tuner: Makefile test/test_tuner.cpp src/SuprTuner.cpp src/TunerDsp.h src/OctaverDsp.h
+build/test_tuner: Makefile test/test_tuner.cpp src/SuprTuner.cpp src/TunerDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_tuner.cpp src/SuprTuner.cpp
 
 # The measurement rig SuprFuzz and SuprSans were fitted with. Dependency-free,
 # unlike its counterpart tools/nam_probe.cpp, which needs NeuralAudio and so
 # builds out of CMakeLists.txt with `make nam`.
-build/fuzz_probe: Makefile tools/fuzz_probe.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPlusDsp.h src/OctaverDsp.h
+build/fuzz_probe: Makefile tools/fuzz_probe.cpp src/FuzzDsp.h src/SansDsp.h src/OctaverPlusDsp.h src/OctaverDsp.h src/FilterDsp.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -Isrc -o $@ tools/fuzz_probe.cpp
 
@@ -134,6 +134,9 @@ demo: build/test_octaver
 	@echo "Demo WAVs written to build/demo/"
 
 install: all
+	install -d $(DESTDIR)$(LV2_DIR)/suprcrush.lv2
+	install -m 644 build/suprcrush.so ttl/suprcrush.ttl ttl/crush-presets.ttl $(DESTDIR)$(LV2_DIR)/suprcrush.lv2/
+	install -m 644 ttl/crush-manifest.ttl $(DESTDIR)$(LV2_DIR)/suprcrush.lv2/manifest.ttl
 	install -d $(DESTDIR)$(LV2_DIR)/suprvowel.lv2
 	install -m 644 build/suprvowel.so ttl/suprvowel.ttl ttl/vowel-presets.ttl $(DESTDIR)$(LV2_DIR)/suprvowel.lv2/
 	install -m 644 ttl/vowel-manifest.ttl $(DESTDIR)$(LV2_DIR)/suprvowel.lv2/manifest.ttl
@@ -186,6 +189,7 @@ install: all
 	install -m 644 ttl/forge-manifest.ttl $(DESTDIR)$(LV2_DIR)/$(BUNDLE13)/manifest.ttl
 
 uninstall:
+	rm -rf $(DESTDIR)$(LV2_DIR)/suprcrush.lv2
 	rm -rf $(DESTDIR)$(LV2_DIR)/suprvowel.lv2
 	rm -rf $(DESTDIR)$(LV2_DIR)/suprphase.lv2
 	rm -rf $(DESTDIR)$(LV2_DIR)/$(BUNDLE14) $(DESTDIR)$(LV2_DIR)/$(BUNDLE15)
@@ -264,11 +268,11 @@ TONE_MOTION_CXXFLAGS = $(filter-out -ffast-math,$(CXXFLAGS)) -ffp-contract=off
 
 
 
-build/suprphase.so: Makefile src/SuprPhase.cpp src/PhaseDsp.h src/SansDsp.h src/OctaverDsp.h
+build/suprphase.so: Makefile src/SuprPhase.cpp src/PhaseDsp.h src/SansDsp.h src/OctaverDsp.h src/FilterDsp.h src/TimeSpaceDsp.h src/CleanLowsDsp.h
 	@mkdir -p build
 	$(CXX) $(TONE_MOTION_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprPhase.cpp
 
-build/test_phase: test/test_phase.cpp Makefile src/SuprPhase.cpp src/PhaseDsp.h src/SansDsp.h src/OctaverDsp.h
+build/test_phase: test/test_phase.cpp Makefile src/SuprPhase.cpp src/PhaseDsp.h src/SansDsp.h src/OctaverDsp.h src/FilterDsp.h src/TimeSpaceDsp.h src/CleanLowsDsp.h
 	@mkdir -p build
 	$(CXX) $(TONE_MOTION_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_phase.cpp src/SuprPhase.cpp
 
@@ -285,11 +289,11 @@ test-signal-integrity: build/test_band
 # SuprVowel shares the existing envelope/SVF primitives without modifying them.
 all: build/suprvowel.so
 
-build/suprvowel.so: Makefile src/SuprVowel.cpp src/VowelDsp.h src/EnvFilterDsp.h src/OctaverDsp.h
+build/suprvowel.so: Makefile src/SuprVowel.cpp src/VowelDsp.h src/EnvFilterDsp.h src/OctaverDsp.h src/FilterDsp.h src/TimeSpaceDsp.h src/CleanLowsDsp.h src/SansDsp.h
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprVowel.cpp
 
-build/test_vowel: Makefile test/test_vowel.cpp src/SuprVowel.cpp src/VowelDsp.h src/EnvFilterDsp.h src/OctaverDsp.h
+build/test_vowel: Makefile test/test_vowel.cpp src/SuprVowel.cpp src/VowelDsp.h src/EnvFilterDsp.h src/OctaverDsp.h src/FilterDsp.h src/TimeSpaceDsp.h src/CleanLowsDsp.h src/SansDsp.h
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_vowel.cpp src/SuprVowel.cpp
 
@@ -313,3 +317,20 @@ test-signal-integrity: build/test_clean build/test_clack
 build/test_clack: Makefile test/test_clack.cpp test/test_octaver.cpp src/SuprClack.cpp $(wildcard src/*.h)
 	@mkdir -p build
 	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_clack.cpp src/SuprClack.cpp
+
+# SuprCrush deliberately aliases; strict arithmetic keeps its clock repeatable.
+all: build/suprcrush.so
+build/suprcrush.so: Makefile src/SuprCrush.cpp src/CrushDsp.h src/TimeSpaceDsp.h src/CleanLowsDsp.h src/SansDsp.h src/OctaverDsp.h src/FilterDsp.h
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -fPIC -shared -o $@ src/SuprCrush.cpp
+
+build/test_crush: Makefile test/test_crush.cpp src/SuprCrush.cpp src/CrushDsp.h src/TimeSpaceDsp.h src/CleanLowsDsp.h src/SansDsp.h src/OctaverDsp.h src/FilterDsp.h
+	@mkdir -p build
+	$(CXX) $(STRICT_DSP_CXXFLAGS) $(LV2_CFLAGS) -Isrc -o $@ test/test_crush.cpp src/SuprCrush.cpp
+
+test: test-crush
+test-crush: build/test_crush build/suprcrush.so
+	./build/test_crush
+	python3 test/validate_crush.py
+
+.PHONY: test-crush

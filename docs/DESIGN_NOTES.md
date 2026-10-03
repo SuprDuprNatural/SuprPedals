@@ -50,6 +50,14 @@ flip-flop, and the divided polarity multiplies a band-limited copy of the
 input. This keeps the player's dynamics instead of replacing them with a
 generated oscillator.
 
+SuprOctave adds a symmetric soft drive at 2x sample rate before its output
+filters. Drive spans 24 dB of extra gain with 9 dB of gradual output trim.
+The high-pass (Off, then 10–1000 Hz) and low-pass (150–4000 Hz) are 12 dB/octave
+TPT sections, with smoothed cutoffs. They shape only the generated voice;
+the direct path and pitch detector stay clean. The panel is three rows:
+Direct / Oct 1, Drive / Gate, High pass / Low pass. The existing `tone` port
+remains the low-pass control; Drive and High pass are appended ports.
+
 The tracker uses:
 
 - a four-pole acquisition low-pass which settles near `1.35 × f0` after lock;
@@ -209,13 +217,23 @@ attack setting that follows the waveform instead of the envelope.
 A complementary `high = input - lowpass(input)` split is unsuitable here.
 Low-pass phase rotation puts a large fraction of the fundamental into that
 nominal high band even when its magnitude response looks safe. The chorus uses
-an LR4 crossover instead. With Low at 120 Hz, a 45 Hz tone measures 0.07 dB of
-ripple and 0.63 cent of detune; with the split disabled the same tone moves
-27.8 cents.
+an LR4 crossover instead. Low filters the wet voices; Mix crossfades the
+complete dry signal, including the low band, to those voices. Full Mix
+contains no clean bass. With the split disabled, the whole audible band choruses.
 
 Delay slope determines pitch deviation, so Rate and Depth multiply. Depth is
 therefore a maximum and the DSP caps peak detune near 50 cents at faster rates.
 Up to three Catmull–Rom-interpolated taps share one delay line.
+
+### Clean lows in Phase, Crush and Vowel
+
+These effects share `CleanLowsDsp`: a 250 Hz LR4 split with an independent,
+unity-gain low input band. Dry and Wet gains apply after filtering only their
+upper bands, so neither controls the low reference or its filter history.
+Matched low/high phase avoids the residual-crossover bass leakage described
+above. L4+H4 reconstructs a unity-magnitude allpass, with no sample buffering;
+it is not a phase-free bypass. See [Linkwitz's crossover derivation](https://www.linkwitzlab.com/crossovers.htm).
+Both levels muted retain clean lows; turn Clean lows off for full-band mixing.
 
 ## SuprNAM
 

@@ -85,8 +85,13 @@ bool NamModel::load(const std::string& path, size_t maxBlock, std::string& error
     info_.version         = model_->GetModelVersion();
 
     model_->SetMaxAudioBufferSize(static_cast<int>(maxBlock));
-    if (info_.hasQualityScale)
+    if (info_.hasQualityScale) {
         model_->SetQualityScaleFactor(quality_);
+        // Commit upstream's staged Slim network while this model is still
+        // worker-owned, so its old network is not freed during audio inference.
+        std::vector<float> silence(maxBlock, 0.0f);
+        model_->Process(silence.data(), silence.data(), maxBlock);
+    }
 
     recomputeGains();
     return true;

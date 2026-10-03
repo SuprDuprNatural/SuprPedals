@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <vector>
 #include <limits>
+
+static float percentToDb(double percent) { return percent>0?float(20*std::log10(percent/50)):-60.f; }
 extern "C" const LV2_Descriptor* lv2_descriptor(uint32_t);
 int failures=0;
 void check(bool ok,const char* msg) {if(!ok){if(failures<20)std::printf("FAIL %s\n",msg);++failures;}}
@@ -14,21 +16,22 @@ std::vector<float> render(double sr,supr::SpaceDsp::Params p,const std::vector<f
 }
 int main(){
  for(double sr:{44100.,48000.,96000.}){
-    { supr::SpaceDsp d;d.init(sr);supr::SpaceDsp::Params p;p.mix=1;p.send=0;d.setParams(p);d.reset();float x=32,y=0;d.process(&x,&y,1);check(y==x,"finite dry is transparent above nominal audio range"); }
-  supr::SpaceDsp::Params p;p.mix=1;p.duck=0;p.decay=1.4;
+    { supr::SpaceDsp d;d.init(sr);supr::SpaceDsp::Params p;p.dry=percentToDb(100);p.wet=percentToDb(0);p.send=0;d.setParams(p);d.reset();float x=32,y=0;d.process(&x,&y,1);check(y==x,"finite dry is transparent above nominal audio range"); }
+  supr::SpaceDsp::Params p;p.dry=percentToDb(0);p.wet=percentToDb(100);p.duck=0;p.decay=1.4;
   std::vector<float> in(size_t(sr*6));in[0]=.25;auto y=render(sr,p,in);
-  check(y[0]==in[0]&&energy(y,1,size_t(sr*.044))==0,"transparent dry and predelay onset");
+  check(energy(y,0,size_t(sr*.044))==0,"full wet removes dry before predelay onset");
   check(energy(y,size_t(sr*.044),size_t(sr*.1))>1e-5,"room onset present");
   check(render(sr,p,in,73)==y,"block partition exact");
   double early=energy(y,size_t(sr*.1),size_t(sr*.4)), late=energy(y,size_t(sr*1.5),size_t(sr*1.8));
   double db=10*std::log10(late/early);check(db<-45&&db>-100,"impulse decay consistent with RT60 and damping");
   check(energy(y,size_t(sr*5),y.size())<1e-15,"impulse tail dies away");
-  auto p0=p;p0.mix=0;check(render(sr,p0,in)==in,"exact dry");
+  auto p0=p;p0.dry=percentToDb(100);p0.wet=percentToDb(0);check(render(sr,p0,in)==in,"exact dry");
   p0=p;p0.decay=.65;auto room=render(sr,p0,in);p0.decay=2.8;auto plate=render(sr,p0,in);
   check(energy(plate,size_t(sr),size_t(sr*2))>100*energy(room,size_t(sr),size_t(sr*2)),"room/plate decay differs meaningfully");
   // LV2 contract, in-place processing and disconnected/default controls.
   const auto* desc=lv2_descriptor(0);check(desc&&!lv2_descriptor(1),"descriptor");auto h=desc->instantiate(desc,sr,nullptr,nullptr);
-  float c[]={1,1.4,4500,0,15,180,350,1};for(int i=0;i<8;++i)desc->connect_port(h,i+2,&c[i]);
+  float c[]={-60,1.4,4500,0,15,180,350,1};for(int i=0;i<8;++i)desc->connect_port(h,i+2,&c[i]);
+  float wet=percentToDb(100);desc->connect_port(h,11,&wet);
   float meter=0;desc->connect_port(h,10,&meter);desc->activate(h);auto actual=in;
   for(size_t i=0;i<actual.size();i+=127){desc->connect_port(h,0,actual.data()+i);desc->connect_port(h,1,actual.data()+i);desc->run(h,std::min(size_t(127),actual.size()-i));}
   check(y==actual,"wrapper in-place equals DSP");desc->run(h,0);check(std::isfinite(meter),"zero run");desc->cleanup(h);
@@ -43,7 +46,7 @@ int main(){
   }
   check(std::abs(mean/sr)<1e-5&&tail>1e-8,"trails and no accumulating DC");
   // Detector is outside the FDN and recovers after a clean-input attack.
-  supr::SpaceDsp a,b;a.init(sr);b.init(sr);p={};p.mix=1;p.duck=0;a.setParams(p);a.reset();p.duck=1;b.setParams(p);b.reset();
+  supr::SpaceDsp a,b;a.init(sr);b.init(sr);p={};p.dry=percentToDb(0);p.wet=percentToDb(100);p.duck=0;a.setParams(p);a.reset();p.duck=1;b.setParams(p);b.reset();
   float oa=0,ob=0;x=.2;
   for(int i=0;i<int(sr*.1);++i){a.process(&x,&oa,1);b.process(&x,&ob,1);}check(b.duckGain()<.06,"duck attack");x=0;
   for(int i=0;i<int(sr);++i){a.process(&x,&oa,1);b.process(&x,&ob,1);check(std::abs(ob-oa*b.duckGain())<1e-6,"duck leaves FDN unchanged");}

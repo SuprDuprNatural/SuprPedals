@@ -1,0 +1,56 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+
+
+<https://suprduprnatural.github.io/supr-pedals/crush#grain> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/crush> ; rdfs:label "Pocket Sampler" ;
+    lv2:port [ lv2:symbol "bits" ; pset:value 10 ],
+    [ lv2:symbol "rate" ; pset:value 12000 ],
+    [ lv2:symbol "drive" ; pset:value 6 ],
+    [ lv2:symbol "env" ; pset:value 0 ],
+    [ lv2:symbol "sensitivity" ; pset:value 0 ],
+    [ lv2:symbol "release" ; pset:value 180 ],
+    [ lv2:symbol "tone" ; pset:value 6000 ],
+    [ lv2:symbol "protect" ; pset:value 1 ],
+    [ lv2:symbol "dry" ; pset:value 1.58362492095 ],
+    [ lv2:symbol "wet" ; pset:value -1.93820026016 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/crush#arcade> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/crush> ; rdfs:label "Arcade Bass" ;
+    lv2:port [ lv2:symbol "bits" ; pset:value 5 ],
+    [ lv2:symbol "rate" ; pset:value 4000 ],
+    [ lv2:symbol "drive" ; pset:value 12 ],
+    [ lv2:symbol "env" ; pset:value 0 ],
+    [ lv2:symbol "sensitivity" ; pset:value 0 ],
+    [ lv2:symbol "release" ; pset:value 180 ],
+    [ lv2:symbol "tone" ; pset:value 4500 ],
+    [ lv2:symbol "protect" ; pset:value 1 ],
+    [ lv2:symbol "dry" ; pset:value -3.09803919971 ],
+    [ lv2:symbol "wet" ; pset:value 2.27886704614 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/crush#fall> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/crush> ; rdfs:label "Falling Pixels" ;
+    lv2:port [ lv2:symbol "bits" ; pset:value 8 ],
+    [ lv2:symbol "rate" ; pset:value 1500 ],
+    [ lv2:symbol "drive" ; pset:value 9 ],
+    [ lv2:symbol "env" ; pset:value 3 ],
+    [ lv2:symbol "sensitivity" ; pset:value 6 ],
+    [ lv2:symbol "release" ; pset:value 300 ],
+    [ lv2:symbol "tone" ; pset:value 5000 ],
+    [ lv2:symbol "protect" ; pset:value 1 ],
+    [ lv2:symbol "dry" ; pset:value -3.09803919971 ],
+    [ lv2:symbol "wet" ; pset:value 2.27886704614 ] .
+
+<https://suprduprnatural.github.io/supr-pedals/crush#bite> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/crush> ; rdfs:label "Attack Corruption" ;
+    lv2:port [ lv2:symbol "bits" ; pset:value 6 ],
+    [ lv2:symbol "rate" ; pset:value 12000 ],
+    [ lv2:symbol "drive" ; pset:value 9 ],
+    [ lv2:symbol "env" ; pset:value -3 ],
+    [ lv2:symbol "sensitivity" ; pset:value 6 ],
+    [ lv2:symbol "release" ; pset:value 130 ],
+    [ lv2:symbol "tone" ; pset:value 7000 ],
+    [ lv2:symbol "protect" ; pset:value 1 ],
+    [ lv2:symbol "dry" ; pset:value -1.93820026016 ],
+    [ lv2:symbol "wet" ; pset:value 1.58362492095 ] .

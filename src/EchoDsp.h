@@ -5,8 +5,8 @@ namespace supr {
 class EchoDsp {
 public:
     struct Params {
-        float time=375, feedback=.4f, mix=.2f, duck=.5f, tone=3500;
-        float lowcut=150, recovery=300, division=0, send=1, hold=0;
+        float time=375, feedback=.4f, dry=4.08239965312f, duck=.5f, tone=3500;
+        float lowcut=150, recovery=300, division=0, send=1, hold=0, wet=-7.95880017344f;
     };
 private:
     Params p;
@@ -15,7 +15,7 @@ private:
     timespace::Highpass hp1,hp2,dc;
     timespace::Lowpass colour;
     timespace::Duck detector;
-    timespace::Smooth fb,mix,duck,send,hold,lpPole,hpPole,releasePole;
+    timespace::Smooth fb,dryLevel,duck,send,hold,lpPole,hpPole,releasePole,wetLevel;
     uint64_t holdSamples=0;
     double gain=1;
     double samples() const {
@@ -30,22 +30,25 @@ public:
     void setParams(Params v) {
         using timespace::finite;
         p.time=finite(v.time,375,20,2000); p.feedback=finite(v.feedback,.4,0,.92);
-        p.mix=finite(v.mix,.2,0,1); p.duck=finite(v.duck,.5,0,1);
+        p.dry=finite(v.dry,4.08239965312f,-60,24); p.duck=finite(v.duck,.5,0,1);
         p.tone=finite(v.tone,3500,800,12000); p.lowcut=finite(v.lowcut,150,40,600);
         p.recovery=finite(v.recovery,300,50,1500);
         p.division=std::round(finite(v.division,0,0,2));
         p.send=finite(v.send,1,0,1); p.hold=finite(v.hold,0,0,1);
+        p.wet=finite(v.wet,-7.95880017344f,-60,24);
         delay.setTime(samples());
     }
     void reset() {
         delay.reset(samples()); hp1={}; hp2={}; dc={}; colour={}; detector={};
-        fb.value=p.feedback; mix.value=p.mix; duck.value=p.duck; send.value=p.send;
+        fb.value=p.feedback; dryLevel.value=timespace::returnGain(p.dry); duck.value=p.duck; send.value=p.send;
         hold.value=0; holdSamples=0; gain=1;
+        wetLevel.value=timespace::returnGain(p.wet);
         lpPole.value=timespace::pole(p.tone,sr); hpPole.value=timespace::pole(p.lowcut,sr);
         releasePole.value=std::exp(-1/(p.recovery*.001*sr));
     }
     void process(const float* in,float* out,uint32_t n) {
         using namespace timespace;
+        const double dryTarget=returnGain(p.dry), wetTarget=returnGain(p.wet);
         const double lpTarget=pole(p.tone,sr), hpTarget=pole(p.lowcut,sr);
         const double dcPole=pole(8,sr);
         const double releaseTarget=std::exp(-1/(p.recovery*.001*sr));
@@ -63,8 +66,11 @@ public:
             const double repeat=dc.tick(colour.tick(wet,a),dcPole);
             delay.write(std::clamp(filtered*s+feedback*repeat,-8.0,8.0));
             gain=detector.tick(x,duck.tick(p.duck,smoothing),attack,releasePole.tick(releaseTarget,smoothing));
-            const double m=mix.tick(p.mix,smoothing);
-            out[i]=p.mix==0 ? (std::isfinite(dry)?dry:0.f) : float((std::isfinite(dry)?double(dry):0.0)+m*wet*gain);
+            const double d=dryLevel.tick(dryTarget,smoothing), w=wetLevel.tick(wetTarget,smoothing);
+            const float finiteDry=std::isfinite(dry)?dry:0.f;
+            const double result=d*finiteDry+w*wet*gain;
+            out[i]=d==1&&w==0 ? finiteDry : float(std::clamp(result,
+                -double(std::numeric_limits<float>::max()),double(std::numeric_limits<float>::max())));
         }
     }
     double duckGain() const { return gain; }

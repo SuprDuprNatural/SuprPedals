@@ -8,7 +8,7 @@ enum PortIndex : uint32_t {
     PORT_OUT = 1,
     PORT_TIME = 2,
     PORT_FEEDBACK = 3,
-    PORT_MIX = 4,
+    PORT_DRY = 4,
     PORT_DUCK = 5,
     PORT_TONE = 6,
     PORT_LOWCUT = 7,
@@ -16,13 +16,15 @@ enum PortIndex : uint32_t {
     PORT_DIVISION = 9,
     PORT_SEND = 10,
     PORT_HOLD = 11,
-    PORT_DUCK_GR = 12
+    PORT_DUCK_GR = 12,
+    PORT_WET = 13
 };
 struct Effect {
     supr::EchoDsp dsp;
     const float* in=nullptr;
     float* out=nullptr;
     const float* controls[10]={};
+    const float* wet=nullptr;
     float* reduction=nullptr;
 };
 LV2_Handle instantiate(const LV2_Descriptor*, double rate, const char*, const LV2_Feature* const*) {
@@ -36,11 +38,13 @@ void connect(LV2_Handle h,uint32_t port,void* data) {
     else if(port==PORT_OUT) s->out=static_cast<float*>(data);
     else if(port>=2 && port<12) s->controls[port-2]=static_cast<const float*>(data);
     else if(port==PORT_DUCK_GR) s->reduction=static_cast<float*>(data);
+    else if(port==PORT_WET) s->wet=static_cast<const float*>(data);
 }
 void params(Effect* s) {
     supr::EchoDsp::Params p;
-    float* v[]={&p.time,&p.feedback,&p.mix,&p.duck,&p.tone,&p.lowcut,&p.recovery,&p.division,&p.send,&p.hold};
+    float* v[]={&p.time,&p.feedback,&p.dry,&p.duck,&p.tone,&p.lowcut,&p.recovery,&p.division,&p.send,&p.hold};
     for(int i=0;i<10;++i) if(s->controls[i]) *v[i]=*s->controls[i];
+    if(s->wet) p.wet=*s->wet;
     s->dsp.setParams(p);
 }
 void activate(LV2_Handle h) { auto* s=static_cast<Effect*>(h); params(s); s->dsp.reset(); }

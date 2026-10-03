@@ -1,9 +1,14 @@
 # SuprVowel
 
+Dry and Wet levels use dB relative to a 50/50 blend: **0 dB on both gives
+unity for matching signals**. Both knobs centre at 0 dB, reach +24 dB and
+mute at −∞. The mute endpoint is stored as −60 in LV2. They use the same
+continuous knob and text readout as Vowel's Throat control.
+
 A mono bass formant filter: morph between **OO, OH, AH, EH and EE** with
 your playing dynamics, an expression pedal or a free-running LFO. Three
-moving resonances give the upper harmonics a vocal shape while a complementary
-low-frequency path keeps the bass foundation. No pitch detector is needed:
+moving resonances give the upper harmonics a vocal shape. Clean lows keeps
+a separate unity-gain bass reference; Dry and Wet blend only the upper bands. No pitch detector is needed:
 Throat changes the resonances, never the note being played.
 
 ## Play it
@@ -28,7 +33,7 @@ It starts at the From end on activation and runs continuously, including
 through silence and while another motion mode is selected. Rate is Hz;
 there is no host-transport or tap-tempo synchronization in this version.
 
-The strip above the controls shows **actual DSP position and formant centres**,
+The strip above the first two columns shows **actual DSP position and formant centres**,
 not an estimated frequency response. It clears on disconnection and renews
 its subscriptions after reconnecting.
 
@@ -43,13 +48,15 @@ its subscriptions after reconnecting.
 | Release | 40–800 ms | 180 ms | Envelope recovery |
 | Throat | −6 to +6 semitones | 0 | Shifts all three resonances together |
 | Focus | 0–1 | 0.6 | Resonator Q from 2 to 10 |
-| Mix | 0–1 | 0.8 | Dry to bass-protected voice |
-| Level | −12 to +12 dB | 0 dB | Output trim |
+| Dry Level | −∞ to +24 dB | −7.9588 dB | Dry upper-band gain with Clean lows on; −∞ mutes this return |
+| Wet Level | −∞ to +24 dB | +4.0824 dB | Vowel upper-band gain with Clean lows on; −∞ mutes this return |
+| Clean lows | Off / On | On | Separate clean low band, independent of both level controls |
 
 This is a filter, so it needs harmonics to shape. A muted, nearly sinusoidal
 note gives a subtler result than a bright pluck, a synth voice or mild drive
 before Vowel. There is no hidden distortion or oscillator generating extra
-harmonics. The clean low end remains audible even at full Mix.
+harmonics. Clean lows retains the bass even with both level controls muted.
+Turn it off for the original filtered-voice/full-band dry mixing.
 
 ## With SuprEnvelope
 
@@ -95,19 +102,33 @@ instantaneously replace a filter. Integrator and damping coefficients are
 updated on a fixed eight-sample cadence and interpolated per sample. That
 cadence never restarts at a host block boundary.
 
-Low protection follows the explicitly voiced complementary construction used
-by SuprPhase. With `H` equal to two cascaded first-order 250 Hz highpasses,
-the pre-Level output is:
+With Clean lows on, a matched 250 Hz Linkwitz–Riley fourth-order crossover
+routes the input low band directly to the output at unity gain. Dry and Wet
+Level apply only to their high bands:
 
 ```
-x + Mix * H(voice - x)
+L4(input) + dryGain * H4(input) + wetGain * H4(effect)
 ```
 
-Equivalently, the wet endpoint is `(1-H)x + H*voice`. This is not an LR
-crossover or a flat-magnitude promise at the crossover. Low fundamentals are
-measured below; the remaining response is deliberate tone shaping. There is
-no sample delay on either branch. Mix zero and Level zero are bit-exact dry,
-including after a smoothed move to zero has settled.
+The low reference never passes through the effect or either level control.
+Both levels muted therefore leave clean lows audible. L4 and H4 have the same
+phase and sum to a unity-magnitude second-order allpass; there is no crossover
+bump or dip for matching signals with gains summing to one. This is a gradual
+24 dB/octave split, with the usual frequency-dependent crossover phase, not a
+brick-wall or phase-free bypass. No sample buffer or transport latency is added.
+The implementation reuses the double-precision trapezoidal SVF. It filters
+ungained sources before applying levels, keeps filter history running while
+disabled, and crossfades the toggle over 20 ms. The crossover's allpass phase
+remains with Clean lows on even at unity Dry and muted Wet. With Clean lows
+off, the original mixing returns: both muted are silent and unity Dry with
+muted Wet is bit-exact, including signed zero.
+
+With protection off, the original two cascaded first-order 250 Hz wet
+highpasses remain in the voice, so disabling the new feature preserves its
+previous tone. Clean lows is appended as input port 18; all four output meters
+and earlier controls keep their indices. All six factory presets enable it.
+The display spans only Voice and Motion; Envelope/Output starts at the top,
+with the compact Clean lows button below Wet without increasing desktop height.
 
 All processing storage is fixed. There is no allocation, locking, model
 loading or work queue in `run`. Nonfinite controls fall back to documented
@@ -120,15 +141,15 @@ and output trim rather than expecting an internal limiter.
 ## Local verification
 
 `make test` includes `test_vowel` and `validate_vowel.py`. The latter checks
-the actual built LV2 library, all 18 port indices, metadata defaults and all
+the actual built LV2 library, all 19 port indices, metadata defaults and all
 six presets. With `rdflib` available it also parses every Turtle file.
 
 Initial local results, September 2026:
 
 - All new tests pass at 8, 44.1, 48, 96 and 192 kHz.
 - Independent complex-response error below `1.6e-5` at the tested frequencies.
-- Low B, E and A change by **+0.123 to +0.354 dB** at full Mix, across all five
-  vowel endpoints and Throat −6/0/+6, at unity output Level.
+- Before the true dry/wet crossfade, Low B, E and A changed by **+0.123 to
+  +0.354 dB** at full Mix. Full Mix now removes that clean bass reference.
 - Automated DSP and LV2 rendering are bit-identical with irregular blocks,
   one-sample blocks in the partition sequence, and in-place processing.
 - Invalid inputs, selector/control extremes, reset, reinitialization,

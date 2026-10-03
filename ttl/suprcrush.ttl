@@ -1,0 +1,24 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+
+<https://suprduprnatural.github.io/supr-pedals/crush#octaves> a units:Unit ; rdfs:label "octaves" ; units:symbol "oct" ; units:render "%f oct" .
+
+<https://suprduprnatural.github.io/supr-pedals/crush> a lv2:Plugin, lv2:DistortionPlugin ; doap:name "SuprCrush" ; doap:license <https://opensource.org/licenses/MIT> ; lv2:minorVersion 1 ; lv2:microVersion 0 ; lv2:optionalFeature lv2:hardRTCapable ;
+    rdfs:comment "Bass bitcrusher with fractional sample-rate reduction, envelope clock sweep, compensated drive and protected lows. Mono; zero dry latency." ;
+    lv2:port [ a lv2:AudioPort, lv2:InputPort ; lv2:index 0 ; lv2:symbol "in" ; lv2:name "In" ],
+    [ a lv2:AudioPort, lv2:OutputPort ; lv2:index 1 ; lv2:symbol "out" ; lv2:name "Out" ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 2 ; lv2:symbol "bits" ; lv2:name "Bits" ; lv2:default 8 ; lv2:minimum 2 ; lv2:maximum 16 ; rdfs:comment "Continuous effective bit depth; lower values give coarser amplitude steps." ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 3 ; lv2:symbol "rate" ; lv2:name "Rate" ; lv2:default 8000 ; lv2:minimum 200 ; lv2:maximum 48000 ; rdfs:comment "Sample/hold clock in Hz, capped at the host sample rate. Aliasing is intentional." ; units:unit units:hz ; lv2:portProperty pprops:logarithmic ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 4 ; lv2:symbol "drive" ; lv2:name "Drive" ; lv2:default 6 ; lv2:minimum 0 ; lv2:maximum 24 ; rdfs:comment "Gain into the quantizer, compensated after crushing. Raises quiet notes into the available steps; high settings clip the wet signal." ; units:unit units:db ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 5 ; lv2:symbol "env" ; lv2:name "Sweep" ; lv2:default 0 ; lv2:minimum -4 ; lv2:maximum 4 ; units:unit <https://suprduprnatural.github.io/supr-pedals/crush#octaves> ; rdfs:comment "Envelope clock sweep in octaves. Positive opens the rate on attack; negative crushes harder on attack. Zero disables movement." ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 6 ; lv2:symbol "sensitivity" ; lv2:name "Sensitivity" ; lv2:default 0 ; lv2:minimum -24 ; lv2:maximum 24 ; rdfs:comment "Envelope sensitivity only; does not change audio gain." ; units:unit units:db ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 7 ; lv2:symbol "release" ; lv2:name "Release" ; lv2:default 180 ; lv2:minimum 30 ; lv2:maximum 1000 ; rdfs:comment "Envelope recovery time." ; units:unit units:ms ; lv2:portProperty pprops:logarithmic ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 8 ; lv2:symbol "tone" ; lv2:name "Tone" ; lv2:default 6000 ; lv2:minimum 400 ; lv2:maximum 18000 ; rdfs:comment "Post-crush low-pass cutoff; smooths digital edges." ; units:unit units:hz ; lv2:portProperty pprops:logarithmic ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 9 ; lv2:symbol "protect" ; lv2:name "Clean lows" ; lv2:default 1 ; lv2:minimum 0 ; lv2:maximum 1 ; rdfs:comment "Separate unity-gain clean low band below a matched 250 Hz, 24 dB/octave Linkwitz-Riley crossover. Dry and Wet Level control only the upper bands; neither knob changes the clean low reference. Both levels muted leave clean lows audible. Off restores the original full-band mixing." ; lv2:portProperty lv2:integer, lv2:toggled ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 10 ; lv2:symbol "dry" ; lv2:name "Dry Level" ; lv2:default 0 ; lv2:minimum -60 ; lv2:maximum 24 ; units:unit units:db ; lv2:scalePoint [ rdfs:label "−∞ dB" ; rdf:value -60 ], [ rdfs:label "0 dB" ; rdf:value 0 ] ; rdfs:comment "Independent dry gain. With Clean lows on, controls only the upper band; clean lows stay at unity. The minimum mutes this return; 0 dB gives half amplitude, for equal 50/50 upper-band weights when Dry and Wet are both at 0 dB." ],
+    [ a lv2:ControlPort, lv2:InputPort ; lv2:index 11 ; lv2:symbol "wet" ; lv2:name "Wet Level" ; lv2:default 0 ; lv2:minimum -60 ; lv2:maximum 24 ; units:unit units:db ; lv2:scalePoint [ rdfs:label "−∞ dB" ; rdf:value -60 ], [ rdfs:label "0 dB" ; rdf:value 0 ] ; rdfs:comment "Independent wet return gain. With Clean lows on, controls only the upper band; clean lows stay at unity. The minimum mutes this return; 0 dB gives half amplitude, for equal 50/50 upper-band weights when Dry and Wet are both at 0 dB. Does not change dry or feedback." ] .

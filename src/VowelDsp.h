@@ -1,8 +1,10 @@
-// SuprVowel: three moving formants over a protected bass foundation.
+// SuprVowel: three moving formants with a filtered wet return.
 // No pitch detector, nonlinear excitation, allocation or transport latency.
 #pragma once
 
 #include "EnvFilterDsp.h" // Existing Simper SVF and envelope follower.
+#include "TimeSpaceDsp.h"
+#include "CleanLowsDsp.h"
 #include <array>
 #include <limits>
 
@@ -11,7 +13,8 @@ class VowelDsp {
 public:
     struct Params {
         float vowel_a=0, vowel_b=2, mode=1, position=0, depth=1, rate=1;
-        float sensitivity=6, release=180, throat=0, focus=.6f, mix=.8f, level=0;
+        float sensitivity=6, release=180, throat=0, focus=.6f, dry=-7.95880017344f, wet=4.08239965312f;
+        float protect=1;
     };
 private:
     static constexpr double pi=3.14159265358979323846;
@@ -26,13 +29,14 @@ private:
     Params target;
     double sr=48000, smooth=0, shapeSmooth=0, hpA=0, phase=0;
     double pos=0, envWeight=1, lfoWeight=0;
-    // position, depth, rate, sensitivity gain, throat, focus, mix, output gain
-    std::array<double,8> current{};
+    // position, depth, rate, sensitivity gain, throat, focus, dry, wet, protection
+    std::array<double,9> current{};
     std::array<double,3> logHz{}, g{}, gStep{};
     double k=1, kStep=0, hpX[2]{}, hpY[2]{};
     std::array<SvfMulti,3> filters;
     EnvFollower envelope;
     Biquad detector;
+    CleanLowsDsp cleanLows;
     float releaseMs=-1;
     unsigned tick=0;
 
@@ -44,9 +48,9 @@ private:
         v += amount*(goal-v);
         if(std::abs(goal-v)<1e-12) v=goal;
     }
-    std::array<double,8> values() const {
+    std::array<double,9> values() const {
         return {target.position,target.depth,target.rate,std::pow(10.,target.sensitivity/20.),
-                target.throat,target.focus,target.mix,std::pow(10.,target.level/20.)};
+                target.throat,target.focus,timespace::returnGain(target.dry),timespace::returnGain(target.wet),target.protect};
     }
     double formant(unsigned j) const {
         const double a=vowels[unsigned(target.vowel_a)][j];
@@ -54,10 +58,8 @@ private:
         return std::clamp(std::exp2(std::log2(a)+pos*std::log2(b/a)+current[4]/12.),
                           80.,std::min(6000.,sr*.4));
     }
-    double protect(double x) {
-        // Same explicit complementary protection as SuprPhase: H is two
-        // 250 Hz highpasses, L=1-H. Output = x + Mix*H*(voice-x).
-        // This is a voiced split, not an LR crossover or a phase-neutral bypass.
+    double wetHighpass(double x) {
+        // Preserve the original wet voicing when Clean lows is off.
         for(unsigned j=0;j<2;++j) {
             const double y=hpA*(x-hpX[j])+(2*hpA-1)*hpY[j];
             hpX[j]=flush(x); hpY[j]=flush(y); x=y;
@@ -70,6 +72,7 @@ public:
         smooth=1-std::exp(-1/(.020*sr));
         shapeSmooth=1-std::exp(-8/(.008*sr));
         hpA=1/(1+std::tan(pi*250/sr));
+        cleanLows.init(sr);
         detector.setHighpass(float(sr),30,.70710678f);
         for(auto& f:filters)f.init(float(sr));
         releaseMs=-1;
@@ -83,8 +86,9 @@ public:
         target.position=control(p.position,0,0,1); target.depth=control(p.depth,1,0,1);
         target.rate=control(p.rate,1,.05f,8); target.sensitivity=control(p.sensitivity,6,-24,24);
         target.release=control(p.release,180,40,800); target.throat=control(p.throat,0,-6,6);
-        target.focus=control(p.focus,.6f,0,1); target.mix=control(p.mix,.8f,0,1);
-        target.level=control(p.level,0,-12,12);
+        target.focus=control(p.focus,.6f,0,1); target.dry=control(p.dry,-7.95880017344f,-60,24);
+        target.wet=control(p.wet,4.08239965312f,-60,24);
+        target.protect=control(p.protect,1,0,1)>=.5f?1:0;
         if(target.release!=releaseMs) {
             releaseMs=target.release;
             envelope.set(float(sr),5,releaseMs);
@@ -95,6 +99,7 @@ public:
         envWeight=target.mode==1?1:0; lfoWeight=target.mode==2?1:0;
         detector.reset(); envelope.reset();
         hpX[0]=hpX[1]=hpY[0]=hpY[1]=0;
+        cleanLows.reset();
         k=1/(2+8*current[5]); kStep=0;
         for(unsigned j=0;j<3;++j) {
             filters[j].reset(); logHz[j]=std::log2(formant(j));
@@ -108,15 +113,15 @@ public:
         const auto goal=values();
         for(uint32_t i=0;i<n;++i) {
             const float dry=std::isfinite(in[i])?in[i]:0.f;
-            // Preserve every finite dry value at zero mix; protect only the
+            // Preserve every finite dry value at unity dry gain; protect only the
             // filter excitation from hostile inputs. Normal audio stays linear.
             const double x=dry, excitation=std::clamp(x,-16.,16.);
-            for(unsigned j=0;j<8;++j)approach(current[j],goal[j],smooth);
+            for(unsigned j=0;j<current.size();++j)approach(current[j],goal[j],smooth);
             approach(envWeight,target.mode==1?1:0,smooth);
             approach(lfoWeight,target.mode==2?1:0,smooth);
             const double e=envelope.process(detector.process(float(excitation)))*current[3];
             envelope.env=float(flush(envelope.env));
-            detector.z1=float(flush(detector.z1)); detector.z2=float(flush(detector.z2));
+            detector.z1=flush(detector.z1); detector.z2=flush(detector.z2);
             const double lfo=.5-.5*std::cos(2*pi*phase);
             const double motion=envWeight*e/(e+.1)+lfoWeight*lfo;
             approach(pos,std::clamp(current[0]+current[1]*motion,0.,1.),smooth);
@@ -141,12 +146,14 @@ public:
                 f.ic1=float(flush(f.ic1)); f.ic2=float(flush(f.ic2));
                 voice+=weights[j]*k*f.bp;
             }
-            const double correction=protect(1.75*voice-x);
-            const double mixed=current[6]==0?x:x+current[6]*correction;
-            // Unity dry bypass is bit-exact, including signed zero. Saturation
+            const double wet=1.75*voice;
+            const double protectedMix=cleanLows.process(x,wet,current[6],current[7]);
+            const double fullMix=current[6]*x+current[7]*wetHighpass(wet);
+            const double mixed=(1-current[8])*fullMix+current[8]*protectedMix;
+            // With protection off, unity dry / muted wet is bit-exact. Saturation
             // here is only float overflow protection, not an audible limiter.
-            out[i]=current[6]==0 && current[7]==1 ? dry : float(std::clamp(
-                current[7]*mixed,-double(std::numeric_limits<float>::max()),
+            out[i]=current[8]==0&&current[6]==1&&current[7]==0 ? dry : float(std::clamp(
+                mixed,-double(std::numeric_limits<float>::max()),
                 double(std::numeric_limits<float>::max())));
         }
     }

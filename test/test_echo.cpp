@@ -5,6 +5,8 @@
 #include <vector>
 #include <limits>
 #include <cstring>
+
+static float percentToDb(double percent) { return percent>0?float(20*std::log10(percent/50)):-60.f; }
 extern "C" const LV2_Descriptor* lv2_descriptor(uint32_t);
 static int failures=0;
 void check(bool ok,const char* what) { if(!ok) { ++failures; std::printf("FAIL %s\n",what); } }
@@ -16,11 +18,11 @@ std::vector<float> render(double sr,supr::EchoDsp::Params p,const std::vector<fl
 }
 int main() {
  for(double sr:{44100.,48000.,96000.}) {
-    { supr::EchoDsp d;d.init(sr);supr::EchoDsp::Params p;p.mix=1;p.send=0;d.setParams(p);d.reset();float x=32,y=0;d.process(&x,&y,1);check(y==x,"finite dry is transparent above nominal audio range"); }
-    supr::EchoDsp::Params p; p.time=100; p.duck=0; p.mix=1; p.feedback=.6;
+    { supr::EchoDsp d;d.init(sr);supr::EchoDsp::Params p;p.dry=percentToDb(100);p.wet=percentToDb(0);p.send=0;d.setParams(p);d.reset();float x=32,y=0;d.process(&x,&y,1);check(y==x,"finite dry is transparent above nominal audio range"); }
+    supr::EchoDsp::Params p; p.time=100; p.duck=0; p.dry=percentToDb(0);p.wet=percentToDb(100); p.feedback=.6;
     std::vector<float> in(size_t(sr*3)); in[0]=.25;
     auto y=render(sr,p,in); size_t t=size_t(sr*.1);
-    check(y[0]==in[0] && energy(y,1,t)==0 && std::abs(y[t])>.2,"dry and first impulse timing");
+    check(energy(y,0,t)==0 && std::abs(y[t])>.2,"full wet removes dry and preserves first impulse timing");
     auto z=render(sr,p,in,1); check(y==z,"block partition exact");
     double e1=energy(y,t,t*2), e2=energy(y,t*2,t*3);
     double lp=0, dc=0, expectedEnergy=0, maxError=0;
@@ -33,11 +35,11 @@ int main() {
     check(maxError<1e-7 && std::abs(e2-expectedEnergy)<1e-8 && e2/e1<.36,"repeat matches independent filter/feedback recurrence");
     auto p0=p; p0.feedback=0; auto first=render(sr,p0,in);
     check(energy(first,2*t,3*t)<1e-12,"zero feedback has no second repeat");
-    p0=p; p0.mix=0; for(size_t i=0;i<in.size();++i) in[i]=float(.1*std::sin(i*.23));
+    p0=p; p0.dry=percentToDb(100);p0.wet=percentToDb(0); for(size_t i=0;i<in.size();++i) in[i]=float(.1*std::sin(i*.23));
     check(render(sr,p0,in)==in,"exact dry mix zero");
     for(double hz:{31.,1000.}) {
         for(size_t i=0;i<in.size();++i) in[i]=float(.1*std::sin(2*supr::timespace::pi*hz*i/sr));
-        p0=p; p0.feedback=0; auto a=render(sr,p0,in); for(size_t i=0;i<a.size();++i) a[i]-=in[i];
+        p0=p; p0.feedback=0; auto a=render(sr,p0,in);
         double ratio=energy(a,size_t(sr),a.size())/energy(in,size_t(sr),in.size());
         check(hz==31 ? ratio<.003 : ratio>.8,"wet send rejects low B and passes mids");
         std::printf("Echo %.0f Hz lowcut test %.0f Hz: %.2f dB\n",sr,hz,10*std::log10(ratio));
@@ -51,9 +53,10 @@ int main() {
     check(b.duckGain()>.999,"duck recovery");
     // Actual LV2 wiring, all control pointers, in-place and chunk independence.
     const auto* desc=lv2_descriptor(0); check(desc && !lv2_descriptor(1),"descriptor");
-    float c[]={100,.6,1,0,3500,150,300,0,1,0};
+    float c[]={100,.6,-60,0,3500,150,300,0,1,0};
     auto h=desc->instantiate(desc,sr,nullptr,nullptr); check(h!=nullptr,"instantiate");
     for(int i=0;i<10;++i) desc->connect_port(h,2+i,&c[i]);
+    float wet=percentToDb(100); desc->connect_port(h,13,&wet);
     float meter=0; desc->connect_port(h,12,&meter); desc->activate(h);
     in.assign(size_t(sr),0);in[0]=.25; auto ref=render(sr,p,in); auto actual=in;
     for(size_t i=0;i<in.size();i+=73) {desc->connect_port(h,0,actual.data()+i);desc->connect_port(h,1,actual.data()+i);desc->run(h,std::min(size_t(73),in.size()-i));}

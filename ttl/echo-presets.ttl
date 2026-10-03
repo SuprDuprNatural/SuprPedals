@@ -9,35 +9,38 @@
 <https://suprduprnatural.github.io/supr-pedals/echo#thickener> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/echo> ; rdfs:label "Thickener" ;
     lv2:port [ lv2:symbol "time" ; pset:value 105 ],
     [ lv2:symbol "feedback" ; pset:value 0.18 ],
-    [ lv2:symbol "mix" ; pset:value 0.12 ],
+    [ lv2:symbol "dry" ; pset:value 4.91025335628 ],
     [ lv2:symbol "duck" ; pset:value 0.15 ],
     [ lv2:symbol "tone" ; pset:value 5000 ],
     [ lv2:symbol "lowcut" ; pset:value 160 ],
     [ lv2:symbol "recovery" ; pset:value 200 ],
     [ lv2:symbol "division" ; pset:value 0 ],
     [ lv2:symbol "send" ; pset:value 1 ],
-    [ lv2:symbol "hold" ; pset:value 0 ] .
+    [ lv2:symbol "hold" ; pset:value 0 ],
+    [ lv2:symbol "wet" ; pset:value -12.3957751658 ] .
 
 <https://suprduprnatural.github.io/supr-pedals/echo#dotted> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/echo> ; rdfs:label "Ducked dotted eighth" ;
     lv2:port [ lv2:symbol "time" ; pset:value 500 ],
     [ lv2:symbol "feedback" ; pset:value 0.45 ],
-    [ lv2:symbol "mix" ; pset:value 0.28 ],
+    [ lv2:symbol "dry" ; pset:value 3.1672498419 ],
     [ lv2:symbol "duck" ; pset:value 0.75 ],
     [ lv2:symbol "tone" ; pset:value 3800 ],
     [ lv2:symbol "lowcut" ; pset:value 180 ],
     [ lv2:symbol "recovery" ; pset:value 300 ],
     [ lv2:symbol "division" ; pset:value 2 ],
     [ lv2:symbol "send" ; pset:value 1 ],
-    [ lv2:symbol "hold" ; pset:value 0 ] .
+    [ lv2:symbol "hold" ; pset:value 0 ],
+    [ lv2:symbol "wet" ; pset:value -5.03623945988 ] .
 
 <https://suprduprnatural.github.io/supr-pedals/echo#dub> a pset:Preset ; lv2:appliesTo <https://suprduprnatural.github.io/supr-pedals/echo> ; rdfs:label "Dark quarter throw" ;
     lv2:port [ lv2:symbol "time" ; pset:value 650 ],
     [ lv2:symbol "feedback" ; pset:value 0.72 ],
-    [ lv2:symbol "mix" ; pset:value 0.3 ],
+    [ lv2:symbol "dry" ; pset:value 2.92256071356 ],
     [ lv2:symbol "duck" ; pset:value 0.35 ],
     [ lv2:symbol "tone" ; pset:value 1600 ],
     [ lv2:symbol "lowcut" ; pset:value 240 ],
     [ lv2:symbol "recovery" ; pset:value 450 ],
     [ lv2:symbol "division" ; pset:value 0 ],
     [ lv2:symbol "send" ; pset:value 1 ],
-    [ lv2:symbol "hold" ; pset:value 0 ] .
+    [ lv2:symbol "hold" ; pset:value 0 ],
+    [ lv2:symbol "wet" ; pset:value -4.43697499233 ] .

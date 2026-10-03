@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <vector>
 namespace supr { namespace timespace {
 constexpr double pi = 3.14159265358979323846;
@@ -13,6 +14,13 @@ inline double audio(double v) { return std::isfinite(v) ? std::clamp(v, -16.0, 1
 inline double rate(double r) { return finite(r, 48000, 8000, 192000); }
 inline double pole(double hz, double sr) { return std::exp(-2*pi*std::min(hz, sr*.45)/sr); }
 inline double flush(double x) { return std::abs(x) < 1e-30 ? 0 : x; }
+// Return levels are relative to a 50/50 blend: two matching 0 dB paths sum to unity.
+// -60 is the finite LV2 representation of the mute endpoint (-infinity dB).
+inline double returnGain(float db) {
+    if(db<=-60) return 0;
+    if(db==6.020599913279624f) return 1; // Exact full-dry passthrough.
+    return .5*std::pow(10.,double(db)/20.);
+}
 struct Lowpass {
     double z = 0;
     double tick(double x, double a) { z = flush((1-a)*x + a*z); return z; }
@@ -23,7 +31,11 @@ struct Highpass {
 };
 struct Smooth {
     double value = 0;
-    double tick(double target, double a) { value = target + a*(value-target); return value; }
+    double tick(double target, double a) {
+        value = target + a*(value-target);
+        if(std::abs(value-target)<1e-12) value=target;
+        return value;
+    }
 };
 struct Duck {
     double envelope = 0;

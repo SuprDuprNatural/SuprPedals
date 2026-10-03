@@ -1,6 +1,6 @@
 # SuprPedals
 
-SuprPedals is a collection of eighteen bass-focused LV2 plugins for Raspberry
+SuprPedals is a collection of nineteen bass-focused LV2 plugins for Raspberry
 Pi and [PiPedal](https://rerdavies.github.io/pipedal/). It covers pitch,
 dynamics, drive, modulation, delay, reverb, metering and multi-model NAM routing.
 
@@ -13,10 +13,10 @@ are part of the companion [PiPedal fork](https://github.com/SuprDuprNatural/pipe
 
 | Plugin | Purpose |
 | --- | --- |
-| **SuprOctave** | OC-2-style sub octave with adaptive bass tracking |
+| **SuprOctave** | OC-2-style sub octave with adaptive bass tracking, rounded drive and high/low-pass filters |
 | **SuprOctavePlus** | SuprOctave plus a two-oscillator monophonic synth driven by the string rather than MIDI |
 | **SuprEnvelope** | Bass envelope filter with LP, BP and HP modes, reverse sweep and dry blend |
-| **[SuprVowel](docs/SUPRVOWEL.md)** | Five-vowel formant voice with envelope, manual/expression and LFO morphing, plus protected lows |
+| **[SuprVowel](docs/SUPRVOWEL.md)** | Five-vowel formant voice with envelope, manual/expression and LFO morphing, plus independent dry/wet levels and clean lows |
 | **SuprCompressor** | Soft-knee compressor with sidechain high-pass and parallel blend |
 | **SuprTransient** | Attack and sustain shaper measured against an SPL Transient Designer; Focus protects the fundamental |
 | **SuprClack** | Reduces fret clack, scrapes, sympathetic ring, shift noise and noise between notes |
@@ -26,15 +26,16 @@ are part of the companion [PiPedal fork](https://github.com/SuprDuprNatural/pipe
 | **SuprSans** | Bass driver and DI preamp fitted to measurements of a SansAmp Bass Driver |
 | **SuprFuzz** | Two-stage bass fuzz fitted to Big Muff for Bass captures, with an aligned clean blend |
 | **SuprForge** | Modern high-gain bass drive: clean compressed lows, antialiased two-stage distortion, independent Bite and Fizz |
+| **[SuprCrush](docs/SUPRCRUSH.md)** | Bass bitcrusher with envelope sample-rate sweep, compensated drive and protected lows |
 | **SuprChorus** | Crossover chorus that leaves the band below `Low` unmodulated |
 | **[SuprEcho](docs/SUPRECHO.md)** | Filtered ducking delay with tap divisions, internal trails and bounded repeat hold |
 | **[SuprSpace](docs/SUPRSPACE.md)** | Filtered ducked mono room/plate-style ambience with transparent dry |
-| **[SuprPhase](docs/SUPRPHASE.md)** | LFO/envelope phaser with optional complementary low protection |
+| **[SuprPhase](docs/SUPRPHASE.md)** | LFO/envelope phaser with optional clean-low protection, independent dry/wet levels |
 | **SuprNAM** | Up to three `.nam` or `.aidax` models in seven series and parallel routings |
 
 ## Build and install
 
-The seventeen non-NAM plugins are dependency-free apart from the included LV2
+The eighteen non-NAM plugins are dependency-free apart from the included LV2
 header:
 
 ```sh
@@ -97,7 +98,7 @@ Reported fixed latency:
 
 | Plugins | Latency |
 | --- | --- |
-| Octave, OctavePlus, Envelope, Vowel, Compressor, Transient, VU, Tuner, Chorus, Echo, Space, Phase | 0 samples |
+| Octave, OctavePlus, Envelope, Vowel, Compressor, Transient, VU, Tuner, Chorus, Echo, Space, Phase, Crush | 0 samples |
 | Sans, Fuzz, Band | 15 samples from the 2× halfband round trip |
 | Forge | 23 samples from the 4× oversampling round trip |
 | Clack | 2 ms lookahead |

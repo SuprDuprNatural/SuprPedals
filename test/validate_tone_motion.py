@@ -6,7 +6,7 @@ try:
  import rdflib
 except ImportError:
  rdflib=None
-contracts={'phase':'in out rate depth centre feedback mix protect mode sensitivity'}
+contracts={'phase':'in out rate depth centre feedback dry protect mode sensitivity wet'}
 for effect,names in contracts.items():
  symbols=names.split();ttl=(root/f'ttl/supr{effect}.ttl').read_text();cpp=(root/f'src/Supr{effect.title()}.cpp').read_text()
  expected=list(enumerate(symbols))
